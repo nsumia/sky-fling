@@ -13,7 +13,7 @@ fail=0
 mutations=(
   "broken wing stat (no lift gain)|scripts/core/stats.gd|\"area\": 1.0 + 0.22 * w|\"area\": 1.0|upgrades|"
   "dead engine (no thrust)|scripts/core/stats.gd|else 1.2 + 1.1 * e|else 0.0|upgrades|"
-  "slingshot ignores level|scripts/core/stats.gd|\"v_max\": 19.0 + 2.4 * s|\"v_max\": 19.0|upgrades|"
+  "slingshot ignores level|scripts/core/stats.gd|\"v_max\": 21.0 + 2.4 * s|\"v_max\": 21.0|upgrades|"
   "corrupt-save guard removed|scripts/core/save_store.gd|if typeof(raw) != TYPE_DICTIONARY:|if false:|unit|"
   "buy allowed without coins|scripts/core/econ.gd|return c > 0 and d[\"coins\"] >= c|return c > 0|unit|"
   "costs 5x too cheap (balance)|scripts/core/cfg.gd|var c: float = p[\"base\"] * pow(p[\"growth\"], level - 1)|var c: float = 0.2 * p[\"base\"] * pow(p[\"growth\"], level - 1)|balance|"

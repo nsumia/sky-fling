@@ -26,12 +26,12 @@ run unit unit 4 "UNIT OK"
 run upgrades upgrades 14 "UPGRADES OK"
 run flight3d flight3d 12 "FLIGHT3D OK"
 
-echo "--- nan_stress (4 shards x 2500 flights = 10,000) ---"
-for s in 0 1 2 3; do
-  ( NAN_SHARD=$s NAN_N=2500 timeout "${TEST_TIMEOUT:-300}" $GODOT --headless --path . -s res://tests/nan_stress.gd >"$dir/nan$s.log" 2>&1; echo $? >"$dir/nan$s.rc" ) &
+echo "--- nan_stress (12 shards x 834 flights = 10,008, no flight-time cap: every flight must end by itself) ---"
+for s in 0 1 2 3 4 5 6 7 8 9 10 11; do
+  ( NAN_SHARD=$s NAN_N=834 timeout "${TEST_TIMEOUT:-300}" $GODOT --headless --path . -s res://tests/nan_stress.gd >"$dir/nan$s.log" 2>&1; echo $? >"$dir/nan$s.rc" ) &
 done
 wait
-for s in 0 1 2 3; do
+for s in 0 1 2 3 4 5 6 7 8 9 10 11; do
   tail -n 3 "$dir/nan$s.log" | head -n 1
   [ "$(cat "$dir/nan$s.rc")" -eq 0 ] || reasons+=("nan shard $s exited $(cat "$dir/nan$s.rc")")
   grep -q "^NAN STRESS OK" "$dir/nan$s.log" || reasons+=("nan shard $s not OK")

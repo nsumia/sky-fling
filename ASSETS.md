@@ -4,20 +4,20 @@ Format: the `Files` column holds repo paths (a path ending in `/` covers every f
 
 | Name | Author | URL | Licence | Files | Modifications |
 |---|---|---|---|---|---|
-| Airplane (biplane) | Poly by Google | https://poly.pizza/m/8VysVKMXN2J | CC-BY 3.0 | `assets/models/biplane.glb` | rotated, scaled, materials re-tuned (PBR), add-on parts built in code |
+| Airplane (biplane) | Poly by Google | https://poly.pizza/m/8VysVKMXN2J | CC-BY 3.0 | `assets/models/biplane.glb`, `assets/models/biplane_PUSHILIN_PLANE.png` | rotated, scaled, materials re-tuned (PBR), add-on parts built in code |
 | Small Airplane | Vojtech Balak | https://poly.pizza/m/7cvx6ex-xfL | CC-BY 3.0 | `assets/models/propplane.glb` | rotated, scaled, PBR materials, propeller spun in code |
 | Jet | jeremy | https://poly.pizza/m/6fyLMORhgGK | CC-BY 3.0 | `assets/models/jet.glb` | rotated, scaled, PBR materials |
-| Spaceship (rocket plane) | Quaternius | https://poly.pizza/m/uCeLfsdmNP | CC0 1.0 | `assets/models/rocketplane.glb` | rotated, scaled |
+| Spaceship (rocket plane) | Quaternius | https://poly.pizza/m/uCeLfsdmNP | CC0 1.0 | `assets/models/rocketplane.glb`, `assets/models/rocketplane_Atlas.png` | rotated, scaled |
 | Spaceship (space plane) | Quaternius | https://poly.pizza/m/PQzePrvBCD | CC0 1.0 | `assets/models/spaceplane.glb` | rotated, scaled |
 | Tree | Kenney | https://poly.pizza/m/QN3Ru02ayU | CC0 1.0 | `assets/models/nature/tree_kenney.glb` | tinted green |
 | Tree Large | Kenney | https://poly.pizza/m/ORCbG8dslS | CC0 1.0 | `assets/models/nature/tree_tall_kenney.glb` | tinted green |
 | Tree | Quaternius | https://poly.pizza/m/9nvGuZlbpE | CC0 1.0 | `assets/models/nature/tree_broad.glb` | none |
 | Pine Tree with Snow | Quaternius | https://poly.pizza/m/17vQv2X5rh | CC0 1.0 | `assets/models/nature/pine_snow.glb` | none |
-| Palm Tree | Quaternius | https://poly.pizza/m/DsrrAYmucG | CC0 1.0 | `assets/models/nature/palm.glb` | none |
+| Palm Tree | Quaternius | https://poly.pizza/m/DsrrAYmucG | CC0 1.0 | `assets/models/nature/palm.glb`, `assets/models/nature/palm_Atlas_Pirate.png` | none |
 | Cactus | Quaternius | https://poly.pizza/m/HsEJgRLQWX | CC0 1.0 | `assets/models/nature/cactus.glb` | none |
-| Dead Tree | Quaternius | https://poly.pizza/m/16MPvqwlmE | CC0 1.0 | `assets/models/nature/dead_tree.glb` | none |
-| Rock | Quaternius | https://poly.pizza/m/34W5ymEePk | CC0 1.0 | `assets/models/nature/rock_a.glb` | none |
-| Rock Large | Quaternius | https://poly.pizza/m/54jZKTAt5p | CC0 1.0 | `assets/models/nature/rock_b.glb` | none |
+| Dead Tree | Quaternius | https://poly.pizza/m/16MPvqwlmE | CC0 1.0 | `assets/models/nature/dead_tree.glb`, `assets/models/nature/dead_tree_Atlas.png` | none |
+| Rock | Quaternius | https://poly.pizza/m/34W5ymEePk | CC0 1.0 | `assets/models/nature/rock_a.glb`, `assets/models/nature/rock_a_Atlas.png` | none |
+| Rock Large | Quaternius | https://poly.pizza/m/54jZKTAt5p | CC0 1.0 | `assets/models/nature/rock_b.glb`, `assets/models/nature/rock_b_Atlas.png` | none |
 | Rock | Quaternius | https://poly.pizza/m/4MUaQTcDdc | CC0 1.0 | `assets/models/nature/rock_grey.glb` | none |
 | Rock Snow | Quaternius | https://poly.pizza/m/eZRzCg5BcR | CC0 1.0 | `assets/models/nature/rock_snow.glb` | none |
 | Rock | Kenney | https://poly.pizza/m/cBqdRdLDDL | CC0 1.0 | `assets/models/nature/rock_desert.glb` | none |

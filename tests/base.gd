@@ -15,6 +15,8 @@ func finish(tag: String) -> void:
 	for c in root.get_children():
 		c.free()
 	load("res://scripts/game/mesh_builder.gd").release_statics()
+	load("res://scripts/game/models.gd").release_statics()
+	load("res://scripts/game/terrain3d.gd").release_statics()
 	print("== %d passed, %d failed ==" % [passed, failed])
 	if failed == 0:
 		print(tag, " OK")

@@ -37,5 +37,5 @@ func run() -> void:
 	check("node count bounded: flight 12 <= flight 4 + 60", nodes[11] <= nodes[3] + 60, "%d vs %d" % [nodes[11], nodes[3]])
 	check("object count bounded: flight 12 <= 1.15 x flight 4 + 100", objs[11] <= int(objs[3] * 1.15) + 100, "%d vs %d" % [objs[11], objs[3]])
 	check("max nodes over all flights stays small (< 700)", nodes.max() < 700, str(nodes.max()))
-	check("live chunks bounded (<= 12), live pickups bounded (<= 140)", st["chunks"] <= 12 and st["ents"] <= 140, str(st))
+	check("live tiles bounded (<= 30), live pickups bounded (<= 140)", st["chunks"] <= 30 and st["ents"] <= 140, str(st))
 	finish("FLIGHTS")

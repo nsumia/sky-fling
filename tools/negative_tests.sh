@@ -22,7 +22,7 @@ mutations=(
   "result screen never reached (smoke)|scripts/game/main.gd|state = \"result\"|state = \"flying\"|smoke|SKYFLING_SAVE=user://neg_smoke.json"
   "3D: gear level does not change the mesh|scripts/game/plane3d.gd|var gr: int = P[\"gear\"]|var gr: int = mini(1, P[\"gear\"])|plane3d|"
   "3D: part levels ignored by the plane builder|scripts/game/plane3d.gd|p[c] = int(lv.get(c, 0))|p[c] = 0|plane3d|"
-  "3D: terrain chunk leak (chunks never freed)|scripts/game/view3d.gd|if idx < lo or idx > hi:|if false:|chunks|"
+  "3D: terrain tile leak (tiles never freed)|scripts/game/view3d.gd|if not want.has(key):|if false:|chunks|"
   "3D: camera does not follow the plane|scripts/game/view3d.gd|var want := _clear_ground(p - hd * back|var want := _clear_ground(Vector3.ZERO - hd * back|chunks|"
   "3D: no coordinated turn (bank target ignored)|scripts/core/flight.gd|var rtarget := roll_in * BANK_MAX|var rtarget := roll_in * 0.0|flight3d|"
   "3D: no auto-level of the wings|scripts/core/flight.gd|else LEVEL_K * sqrt(p_stab / 1.1)|else 0.0|flight3d|"
@@ -32,6 +32,9 @@ mutations=(
   "3D: joystick pull-back does not climb|scripts/core/controls.gd|var p := s.y            # finger below the centre (pulled back) = nose up|var p := -s.y|flight3d|"
   "3D: pickups spread only in a line (no lateral spread)|scripts/core/world.gd|return (rng.randf() + rng.randf() - 1.0) * half_width(u)|return 0.0 * half_width(u)|flight3d|"
   "3D: hangar model not rebuilt after a purchase|scripts/game/view3d.gd|if sig != last_levels_sig:|if false:|smoke|SKYFLING_SAVE=user://neg_smoke3.json"
+  "assets: a shipped model is missing from ASSETS.md|ASSETS.md|\`assets/models/jet.glb\`|\`assets/models/jet_gone.glb\`|assets|"
+  "assets: a CC-BY author is missing from the Credits screen|scripts/core/credits.gd|[\"Jet\", \"jeremy\"|[\"Jet\", \"somebody\"|assets|"
+  "perf: draw-call budget exceeded (far terrain ring 9x bigger)|scripts/game/terrain3d.gd|{\"size\": 1152.0, \"n\": 24, \"rad\": 1,|{\"size\": 1152.0, \"n\": 24, \"rad\": 4,|perf|"
   "confirm dialog replaces the panel (reintroduced bug)|scripts/game/main.gd|_panel_box(0.85, false)|_panel_box(0.85, true)|smoke|SKYFLING_SAVE=user://neg_smoke2.json"
 )
 

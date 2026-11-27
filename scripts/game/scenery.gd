@@ -7,8 +7,8 @@ const CELL := 48.0
 const RAD := 5
 # name: file, target height range (m), instance cap, tint (Color or null)
 const MODELS := {
-	"tree_kenney": {"f": "tree_kenney.glb", "h": [5.0, 8.0], "cap": 220, "tint": Color(0.40, 0.78, 0.38)},
-	"tree_tall": {"f": "tree_tall_kenney.glb", "h": [7.0, 12.0], "cap": 220, "tint": Color(0.22, 0.55, 0.30)},
+	"tree_kenney": {"f": "tree_kenney.glb", "h": [6.0, 10.0], "cap": 220, "tint": Color(0.40, 0.78, 0.38)},
+	"tree_tall": {"f": "tree_tall_kenney.glb", "h": [9.0, 15.0], "cap": 220, "tint": Color(0.22, 0.55, 0.30)},
 	"tree_broad": {"f": "tree_broad.glb", "h": [5.0, 8.0], "cap": 36},
 	"pine_snow": {"f": "pine_snow.glb", "h": [6.0, 10.0], "cap": 26},
 	"palm": {"f": "palm.glb", "h": [6.0, 9.0], "cap": 16},

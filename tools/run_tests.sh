@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # THE test command. Headless Godot: unit, upgrades-matter, 10k-flight NaN stress (4 parallel shards), balance simulation,
-# 3D plane builder (every part x level), 20 km chunk/node stress, UI + 3D smoke (real scene + input events), layout (720x1280 and 1080x2400), then the negative tests.
+# 3D plane builder (every part x level), assets/licence test, draw-call + triangle budget (headless count and Xvfb renderer counters), 20 km tile/node stress, UI + 3D smoke (real scene + input events), layout (720x1280 and 1080x2400), then the negative tests.
 # Non-zero exit on: any godot non-zero exit or timeout, missing summary lines, any SCRIPT ERROR / parse error / ERROR line,
 # or any negative test that is not detected.
 set -uo pipefail
@@ -41,8 +41,26 @@ run balance balance 14 "BALANCE OK"
 run plane3d plane3d 4 "PLANE3D OK"
 run chunks chunks 7 "CHUNKS OK"
 run flights flights 6 "FLIGHTS OK"
+run assets assets 4 "ASSETS OK"
+run perf perf 12 "PERF OK"
 run smoke smoke 3 "UI SMOKE OK"
 run layout layout 4 "LAYOUT OK"
+
+# the same perf test with a real (software GL) renderer: RenderingServer draw-call / primitive counters
+XV="$HOME/opt/xvfb/usr/bin"
+if [ -x "$XV/Xvfb" ] || command -v Xvfb >/dev/null 2>&1; then
+  export PATH="$XV:$PATH"
+  if ! pgrep -f "Xvfb :98" >/dev/null; then (Xvfb :98 -screen 0 720x1280x24 >/dev/null 2>&1 &); sleep 2; fi
+  echo "--- perf (real renderer under Xvfb, gl_compatibility) ---"
+  DISPLAY=:98 timeout "${TEST_TIMEOUT:-300}" $GODOT --rendering-method gl_compatibility --display-driver x11 --resolution 720x1280 --path . -s res://tests/perf.gd >"$dir/perfx.log" 2>&1
+  rcx=$?
+  grep -E "^PERF" "$dir/perfx.log"
+  [ "$rcx" -eq 0 ] || reasons+=("perf (Xvfb) exited $rcx")
+  grep -q "^PERF OK" "$dir/perfx.log" || reasons+=("perf (Xvfb) not OK")
+  grep -q "RenderingServer counters: max draw calls" "$dir/perfx.log" || reasons+=("perf (Xvfb) printed no renderer counters")
+else
+  echo "perf under a real renderer: NOT VERIFIED (no Xvfb)"
+fi
 
 n=$(cat "$dir"/*.log | grep -cE "SCRIPT ERROR|Parse Error|Compile Error|^ERROR:" || true)
 echo "SCRIPT ERROR / ERROR lines: $n"

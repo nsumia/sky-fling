@@ -52,3 +52,9 @@ Needs Godot 4.7.2 with export templates, JDK 17 and the Android SDK (paths at th
 
 ## License
 MIT
+
+## v3 look and credits
+Realistic presentation: glTF aircraft with code-built upgrade add-ons, PBR terrain (Poly Haven textures) in a 2D tile grid, HDRI sky fading into space, water shader, MultiMesh trees and rocks, billboard clouds, AgX tonemapping, fog, studio hangar.
+All third-party assets (CC0 or CC-BY 3.0) are listed in ASSETS.md and shown in Menu > Credits. CC-BY attributions:
+Airplane (biplane) by Poly by Google, Small Airplane by Vojtech Balak, Jet by jeremy, via Poly Pizza (https://poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts.
+Skies and terrain textures: Poly Haven (CC0). Models: Quaternius and Kenney (CC0).

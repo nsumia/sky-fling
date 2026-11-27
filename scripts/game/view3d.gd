@@ -363,8 +363,8 @@ func _build_stage() -> void:
 	fm.roughness = 0.16
 	fm.metallic_specular = 0.8
 	var floor_m := CylinderMesh.new()
-	floor_m.top_radius = 7.5
-	floor_m.bottom_radius = 7.5
+	floor_m.top_radius = 5.5
+	floor_m.bottom_radius = 5.5
 	floor_m.height = 0.04
 	floor_m.radial_segments = 56
 	floor_m.rings = 1
@@ -376,8 +376,8 @@ func _build_stage() -> void:
 	stage.add_child(stage_floor)
 	var b := MB.new()
 	b.glow = true
-	b.torus(Vector3.ZERO, Vector3.UP, 7.4, 0.06, Color("39e6ff"), 56, 5, Color("b46bff"))
-	b.torus(Vector3.ZERO, Vector3.UP, 4.6, 0.025, Color("b46bff"), 44, 4, Color("39e6ff"))
+	b.torus(Vector3.ZERO, Vector3.UP, 5.4, 0.05, Color("39e6ff"), 56, 5, Color("b46bff"))
+	b.torus(Vector3.ZERO, Vector3.UP, 3.4, 0.02, Color("b46bff"), 44, 4, Color("39e6ff"))
 	var ring := MeshInstance3D.new()
 	ring.name = "Rings"
 	ring.mesh = b.to_mesh()
@@ -615,7 +615,7 @@ func _update_hangar(dt: float, wv) -> void:
 	var spin := 0.55 + stage_spin
 	stage_spin = maxf(0.0, stage_spin - dt * 2.2)
 	var b := plane_bounds
-	var d := maxf(9.5, maxf(b.size.x, b.size.z) * 1.7)
+	var d := maxf(8.0, maxf(b.size.x, b.size.z) * 1.4 + 3.0)
 	var base := Vector3(0, 0.2 + sin(time * 1.6) * 0.12, 0)
 	plane.position = base
 	plane.basis = Basis(Vector3.UP, hang_yaw(dt, spin)) * Basis(Vector3.BACK, 0.07)

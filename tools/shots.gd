@@ -13,15 +13,20 @@ func fly_for(sec: float) -> void:
 	for i in int(sec / 0.0167):
 		m._process(0.0167)
 
-func teleport(x: float, y: float, vx := 40.0, vy := 0.0, th := 0.05) -> void:
-	m.flight.x = x
-	m.flight.y = y
-	m.flight.vx = vx
-	m.flight.vy = vy
-	m.flight.th = th
-	m.flight.fuel = 100.0
-	m.flight.on_ground = false
-	m.flight.done = false
+func teleport(x: float, y: float, vx := 40.0, vy := 0.0, th := 0.05, z := 0.0, psi := 0.0) -> void:
+	var f = m.flight
+	f.x = x
+	f.y = y
+	f.z = z
+	f.psi = psi
+	f.vx = vx * cos(psi)
+	f.vz = -vx * sin(psi)
+	f.vy = vy
+	f.th = th
+	f.phi = 0.0
+	f.fuel = 100.0
+	f.on_ground = false
+	f.done = false
 
 func _initialize() -> void:
 	run.call_deferred()
@@ -41,24 +46,28 @@ func run() -> void:
 	m.wv.levels = m.d["levels"]
 	m.to_launch()
 	fly_for(1.0)
-	m.wv.pull = Vector2(-120, 70)
+	m.wv.pull = Vector2(-50, 120)
 	m._update_aim()
 	fly_for(0.3)
 	await shot("launch")
 	m.wv.pull = Vector2.ZERO
-	m.start_flight(1.0, 0.75)
+	m.start_flight(1.0, 0.75, 0.0)
 	fly_for(2.5)
 	m.boost_down = true
 	fly_for(0.6)
 	m.boost_down = false
 	await shot("flight_meadow")
-	teleport(700.0, 35.0)
+	m.joy.vec = Vector2(1.0, 0.0)   # full stick right: a banking turn
+	fly_for(1.8)
+	await shot("flight_banking")
+	m.joy.vec = Vector2.ZERO
+	teleport(700.0, 35.0, 40.0, 0.0, 0.05, 40.0)
 	fly_for(2.0)
 	await shot("flight_sea")
-	teleport(1500.0, 45.0)
+	teleport(1500.0, 45.0, 40.0, 0.0, 0.05, -60.0)
 	fly_for(2.0)
 	await shot("flight_desert")
-	teleport(2700.0, 70.0)
+	teleport(2700.0, 70.0, 40.0, 0.0, 0.05, 20.0)
 	fly_for(2.0)
 	await shot("flight_mountains")
 	teleport(3000.0, 300.0, 60.0)

@@ -10,6 +10,8 @@ const Ach = preload("res://scripts/core/ach.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
 const View3D = preload("res://scripts/game/view3d.gd")
 const WorldView = preload("res://scripts/game/world_view.gd")
+const Controls = preload("res://scripts/core/controls.gd")
+const Joystick = preload("res://scripts/game/joystick.gd")
 
 const MAX_PULL := 170.0
 const COL_BG := Color("14213d")
@@ -30,8 +32,13 @@ var dialog: Control = null # confirm overlay stacked above modal (never replaces
 var state := "launch"      # launch | flight | result | hangar | panel
 var flight = null
 var accum := 0.0
-var tilts := {}            # touch index -> -1/+1
-var key_tilt := 0.0
+var joy: Control           # on-screen flight stick (joystick.gd)
+var joy_idx := -99         # touch index that holds the stick
+var key_pitch := 0.0       # keyboard: + = nose up
+var key_roll := 0.0        # keyboard: + = bank right
+var tilt_f := Vector2.ZERO # low-pass filtered tilt input (pitch, roll)
+var tilt_live := false     # true while the phone-tilt sensor is actually driving the controls
+var gravity_override := Vector3.ZERO   # tests: stands in for Input.get_gravity()
 var boost_down := false
 var boost_key := false
 var paused := false
@@ -330,18 +337,20 @@ func _build_flight_hud() -> void:
 	bb.offset_top = -(safe_bottom + 160)
 	bb.offset_bottom = -(safe_bottom + 30)
 	lbl["boost"] = bb
-	lbl["tiltL"] = label("< hold: NOSE DOWN", 24, Color(1, 1, 1, 0.6))
-	hud_flight.add_child(lbl["tiltL"])
-	lbl["tiltL"].set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	lbl["tiltL"].offset_left = 24
-	lbl["tiltL"].offset_top = -(safe_bottom + 70)
-	lbl["tiltL"].offset_right = 300
-	lbl["tiltR"] = label("hold: NOSE UP >", 24, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
-	hud_flight.add_child(lbl["tiltR"])
-	lbl["tiltR"].set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	lbl["tiltR"].offset_left = -520
-	lbl["tiltR"].offset_top = -(safe_bottom + 220)
-	lbl["tiltR"].offset_right = -30
+	joy = Joystick.new()
+	joy.name = "Joystick"
+	hud_flight.add_child(joy)
+	joy.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	joy.offset_left = 24
+	joy.offset_right = 324
+	joy.offset_top = -(safe_bottom + 330)
+	joy.offset_bottom = -(safe_bottom + 30)
+	lbl["ctrlhint"] = label("", 24, Color(1, 1, 1, 0.7))
+	hud_flight.add_child(lbl["ctrlhint"])
+	lbl["ctrlhint"].set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	lbl["ctrlhint"].offset_top = -(safe_bottom + 372)
+	lbl["ctrlhint"].offset_bottom = -(safe_bottom + 335)
+	lbl["ctrlhint"].offset_left = 24
 	hud_flight.visible = false
 
 # ------------------------------------------------------------------ state changes
@@ -382,6 +391,8 @@ func to_launch() -> void:
 	wv.pull = Vector2.ZERO
 	wv.aim_arc = PackedVector2Array()
 	wv.aim_world = []
+	wv.aim_pitch = 0.65
+	wv.aim_yaw = 0.0
 	wv.particles.clear()
 	wv.pops.clear()
 	wv.cam_x = 0.0
@@ -399,10 +410,10 @@ func open_hangar() -> void:
 	hud_launch.visible = false
 	_build_hangar()
 
-func start_flight(pull_frac: float, angle: float) -> void:
+func start_flight(pull_frac: float, angle: float, yaw := 0.0) -> void:
 	_close_modal()
 	var st: Dictionary = Econ.stats_for(d)
-	flight = Flight.new(st, d["seed_ctr"], pull_frac, angle)
+	flight = Flight.new(st, d["seed_ctr"], pull_frac, angle, yaw)
 	wv.flight = flight
 	wv.mode = "flight"
 	wv.pull = Vector2.ZERO
@@ -413,7 +424,9 @@ func start_flight(pull_frac: float, angle: float) -> void:
 	wv.levels = d["levels"]
 	state = "flight"
 	accum = 0.0
-	tilts.clear()
+	joy_idx = -99
+	joy.release()
+	tilt_f = Vector2.ZERO
 	boost_down = false
 	end_timer = -1.0
 	hud_launch.visible = false
@@ -421,8 +434,7 @@ func start_flight(pull_frac: float, angle: float) -> void:
 	lbl["fuel"].max_value = maxf(1.0, st["fuel"])
 	lbl["fuel"].visible = st["fuel"] > 0.0
 	lbl["boost"].visible = st["charges"] > 0
-	lbl["tiltL"].visible = not d["settings"]["tutorial"] or d["tot"]["flights"] < 3
-	lbl["tiltR"].visible = lbl["tiltL"].visible
+	lbl["ctrlhint"].visible = not d["settings"]["tutorial"] or d["tot"]["flights"] < 3
 	flight_ctr += 1
 	play("launch")
 
@@ -480,6 +492,9 @@ func _show_pause() -> void:
 		save_now()
 		_show_pause())
 	vb.add_child(m)
+	var cb := btn("Controls", _show_settings, 84)
+	cb.name = "ControlsBtn"
+	vb.add_child(cb)
 	vb.add_child(btn("END FLIGHT", func():
 		paused = false
 		_close_modal()
@@ -491,7 +506,7 @@ func _show_tutorial() -> void:
 	var vb := _panel_box(0.88)
 	vb.add_child(label("Welcome to Sky Fling!", 44, COL_ACC, HORIZONTAL_ALIGNMENT_CENTER))
 	vb.add_child(label("1. Drag back from the slingshot and let go to fling your plane.", 30))
-	vb.add_child(label("2. In flight, HOLD the right half of the screen to pull the nose up, the left half to dive. Too steep and you stall!", 30))
+	vb.add_child(label("2. Fly in 3D with the stick (bottom left): pull back = climb, push = dive, left / right = bank and turn. Too steep and you stall! You can switch to phone tilt in Controls.", 30))
 	vb.add_child(label("3. Grab coins, fuel and rings. Dodge birds and storms. Hit BOOST for a rocket kick.", 30))
 	vb.add_child(label("4. Spend coins in the HANGAR to evolve your plane.", 30))
 	var b := btn("GOT IT", func():
@@ -694,6 +709,9 @@ func _fill_menu(c: VBoxContainer) -> void:
 		rebuild_panel(), 84)
 	mt.name = "MuteBtn"
 	c.add_child(mt)
+	var cs := btn("Controls", _show_settings, 84)
+	cs.name = "ControlsBtn"
+	c.add_child(cs)
 	var tut := btn("Show tutorial", func():
 		close_panel()
 		_show_tutorial(), 84)
@@ -709,7 +727,7 @@ func _fill_menu(c: VBoxContainer) -> void:
 			close_panel()), 84)
 	rs.name = "ResetBtn"
 	c.add_child(rs)
-	c.add_child(label("Controls: drag back and release to launch. Hold right half = nose up, left half = nose down (or arrow keys / A D). BOOST button or Space. Esc / Back = pause.", 24, Color("cfe8ff")))
+	c.add_child(label("Launch: drag the pouch (distance = power, down = climb, sideways = heading; it flies the opposite way). Flight: stick bottom left, or arrow keys / WASD (S, Down = pull up). BOOST button or Space. Esc / Back = pause.", 24, Color("cfe8ff")))
 
 # ------------------------------------------------------------------ hangar
 func _build_hangar() -> void:
@@ -898,10 +916,14 @@ func _unhandled_input(ev: InputEvent) -> void:
 			return
 		if k == KEY_SPACE:
 			boost_key = ev.pressed
+		elif k in [KEY_DOWN, KEY_S]:
+			key_pitch = 1.0 if ev.pressed else (0.0 if key_pitch > 0.0 else key_pitch)     # pull back = nose up
+		elif k in [KEY_UP, KEY_W]:
+			key_pitch = -1.0 if ev.pressed else (0.0 if key_pitch < 0.0 else key_pitch)    # push = nose down
 		elif k in [KEY_LEFT, KEY_A]:
-			key_tilt = -1.0 if ev.pressed else (0.0 if key_tilt < 0.0 else key_tilt)
-		elif k in [KEY_RIGHT, KEY_D, KEY_UP, KEY_W]:
-			key_tilt = 1.0 if ev.pressed else (0.0 if key_tilt > 0.0 else key_tilt)
+			key_roll = -1.0 if ev.pressed else (0.0 if key_roll < 0.0 else key_roll)
+		elif k in [KEY_RIGHT, KEY_D]:
+			key_roll = 1.0 if ev.pressed else (0.0 if key_roll > 0.0 else key_roll)
 		return
 	if ev is InputEventScreenTouch:
 		var pos: Vector2 = ev.position
@@ -909,9 +931,13 @@ func _unhandled_input(ev: InputEvent) -> void:
 			if ev.pressed:
 				if _on_flight_button(pos):
 					return
-				tilts[ev.index] = -1.0 if pos.x < size.x * 0.5 else 1.0
-			else:
-				tilts.erase(ev.index)
+				if joy_idx == -99 and joy.is_visible_in_tree() and joy.get_global_rect().grow(36.0).has_point(pos):
+					joy_idx = ev.index
+					joy.active = true
+					joy.set_from_pos(pos)
+			elif ev.index == joy_idx:
+				joy_idx = -99
+				joy.release()
 		elif state == "launch" and modal == null:
 			if ev.pressed and drag_idx == -99:
 				drag_idx = ev.index
@@ -922,8 +948,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 	elif ev is InputEventScreenDrag:
 		if state == "launch" and ev.index == drag_idx:
 			_set_pull(ev.position)
-		elif state == "flight" and tilts.has(ev.index):
-			tilts[ev.index] = -1.0 if ev.position.x < size.x * 0.5 else 1.0
+		elif state == "flight" and ev.index == joy_idx:
+			joy.set_from_pos(ev.position)
 
 func _on_flight_button(pos: Vector2) -> bool:
 	for n in ["BoostBtn", "PauseBtn"]:
@@ -939,32 +965,42 @@ func _set_pull(pos: Vector2) -> void:
 	wv.pull = v
 	_update_aim()
 
+## Launch aim from the drag (slingshot logic: the plane flies OPPOSITE to the drag). Returns [valid, power 0..1, pitch, yaw].
+## power = drag length, pitch grows when you pull DOWN, heading turns when you pull sideways (drag right = fly left).
 func _launch_params() -> Array:
-	# returns [valid, pull_frac, angle]
-	var v: Vector2 = -wv.pull
-	var frac: float = wv.pull.length() / MAX_PULL
-	if frac < 0.18 or v.x <= 4.0:
-		return [false, 0.0, 0.0]
-	return [true, frac, atan2(-v.y, v.x)]
+	var st: Vector2 = wv.pull / MAX_PULL
+	var frac: float = st.length()
+	if frac < 0.18:
+		return [false, 0.0, 0.0, 0.0]
+	var pitch := clampf(0.62 + 0.78 * st.y, 0.05, 1.35)
+	var yaw := clampf(st.x * 1.2, -1.0, 1.0) * Flight.YAW_MAX
+	return [true, frac, pitch, yaw]
+
+## 3D ballistic aim arc from the pouch (world metres), drawn in the world by view3d.
+func aim_points(power: float, pitch: float, yaw: float, origin: Vector3) -> Array:
+	var st: Dictionary = Econ.stats_for(d)
+	var v0: float = st["v_max"] * (0.25 + 0.75 * power)
+	var hd := Vector3(cos(yaw), 0.0, -sin(yaw))
+	var vel := Vector3(hd.x * cos(pitch), sin(pitch), hd.z * cos(pitch)) * v0
+	var pts: Array = []
+	for i in 24:
+		var t := float(i) / 24.0 * 1.5
+		pts.append(origin + vel * t + Vector3(0, -0.5 * 9.81 * t * t, 0))
+	return pts
 
 func _update_aim() -> void:
 	var lp := _launch_params()
 	var pts: Array = []
 	if lp[0]:
-		var st: Dictionary = Econ.stats_for(d)
-		var v0: float = st["v_max"] * (0.25 + 0.75 * lp[1])
-		var vx := v0 * cos(lp[2])
-		var vy := v0 * sin(lp[2])
-		var o: Vector2 = wv.sling_world() + wv.pull_world()
-		for i in 24:
-			var t := float(i) / 24.0
-			pts.append(o + Vector2(vx * t, vy * t - 0.5 * 9.81 * t * t))
+		wv.aim_pitch = lp[2]
+		wv.aim_yaw = lp[3]
+		pts = aim_points(lp[1], lp[2], lp[3], wv.sling_world() + wv.pull_world())
 	wv.set_aim(pts)
 
 func _release_pull() -> void:
 	var lp := _launch_params()
 	if lp[0]:
-		start_flight(lp[1], lp[2])
+		start_flight(lp[1], lp[2], lp[3])
 	else:
 		wv.pull = Vector2.ZERO
 		wv.aim_arc = PackedVector2Array()
@@ -993,21 +1029,34 @@ func _notification(what: int) -> void:
 		save_now()
 
 # ------------------------------------------------------------------ frame loop
-func current_tilt() -> float:
-	# several fingers: opposite sides cancel out, same side agrees
-	var t := key_tilt
-	for k in tilts:
-		t += tilts[k]
-	return clampf(t, -1.0, 1.0)
+## Flight controls this frame: Vector2(pitch, roll), each -1..1 (pitch + = nose up, roll + = bank right).
+## Phone tilt (when chosen AND the sensor delivers) else the on-screen stick; the keyboard adds on top.
+func ctrl_input() -> Vector2:
+	var st: Dictionary = d["settings"]
+	var inv: bool = st["invert"]
+	var v := Vector2.ZERO
+	tilt_live = false
+	if int(st["ctrl"]) == 1:
+		var g: Vector3 = gravity_override if gravity_override != Vector3.ZERO else Input.get_gravity()
+		var tv: Vector2 = Controls.tilt(g, Vector2(st["cal_x"], st["cal_y"]), inv)
+		if tv != Vector2.INF:
+			tilt_f = tilt_f.lerp(tv, 0.35)
+			v = tilt_f
+			tilt_live = true
+	if not tilt_live:
+		v = Controls.joystick(joy.vec, inv)
+	v += Vector2(-key_pitch if inv else key_pitch, key_roll)
+	return Vector2(clampf(v.x, -1.0, 1.0), clampf(v.y, -1.0, 1.0))
 
 func _process(delta: float) -> void:
 	delta = minf(delta, 0.1)
 	if state == "flight" and flight != null:
 		if not paused:
 			accum += delta
+			var ci := ctrl_input()
 			while accum >= Cfg.DT and not flight.done:
 				accum -= Cfg.DT
-				flight.step(current_tilt(), boost_down or boost_key)
+				flight.step(ci.x, ci.y, boost_down or boost_key)
 				_trail()
 			_flight_events()
 			_update_flight_hud()
@@ -1034,65 +1083,112 @@ func _trail() -> void:
 	if f.t < 0.05:
 		return
 	if int(f.t * 60.0) % 2 == 0:
-		var tx: float = f.x - cos(f.th) * 1.8
-		var ty: float = f.y - sin(f.th) * 1.8
+		var fw: Vector3 = f.fwd()
+		var tx: float = f.x - fw.x * 1.8
+		var ty: float = f.y - fw.y * 1.8
+		var tz: float = f.z - fw.z * 1.8
 		if f.boosting:
-			wv.emit(tx, ty, -f.vx * 0.1, -f.vy * 0.1, 0.5, Color(0.6, 0.85, 1.0, 0.9), 0.7)
+			wv.emit(tx, ty, -f.vx * 0.1, -f.vy * 0.1, 0.5, Color(0.6, 0.85, 1.0, 0.9), 0.7, 0.0, tz, -f.vz * 0.1)
 		elif f.thrusting:
-			wv.emit(tx, ty, -f.vx * 0.05, 1.0, 0.45, Color(1.0, 0.7, 0.2, 0.8), 0.45)
+			wv.emit(tx, ty, -f.vx * 0.05, 1.0, 0.45, Color(1.0, 0.7, 0.2, 0.8), 0.45, 0.0, tz, -f.vz * 0.05)
 		else:
-			wv.emit(tx, ty, 0.0, 0.0, 0.8, Color(1, 1, 1, 0.35), 0.35)
+			wv.emit(tx, ty, 0.0, 0.0, 0.8, Color(1, 1, 1, 0.35), 0.35, 0.0, tz, 0.0)
 
 func _flight_events() -> void:
 	var f = flight
 	for e in f.events:
 		match e["k"]:
 			"coin":
-				wv.burst(e["x"], e["y"], 5, Color("ffd23f"), 6.0, 0.5)
-				wv.pop(e["x"], e["y"], "+%d" % e["v"], Color("ffd23f"))
+				wv.burst(e["x"], e["y"], 5, Color("ffd23f"), 6.0, 0.5, -4.0, e["z"])
+				wv.pop(e["x"], e["y"], "+%d" % e["v"], Color("ffd23f"), e["z"])
 				play("coin")
 			"fuel":
-				wv.burst(e["x"], e["y"], 8, Color("ff7766"), 6.0)
-				wv.pop(e["x"], e["y"], "FUEL", Color("ff9988"))
+				wv.burst(e["x"], e["y"], 8, Color("ff7766"), 6.0, 0.6, -4.0, e["z"])
+				wv.pop(e["x"], e["y"], "FUEL", Color("ff9988"), e["z"])
 				play("fuel")
 			"ring":
-				wv.burst(e["x"], e["y"], 12, Color("5ef2ff"), 9.0)
-				wv.pop(e["x"], e["y"], "+3  SPEED!", Color("5ef2ff"))
+				wv.burst(e["x"], e["y"], 12, Color("5ef2ff"), 9.0, 0.6, -4.0, e["z"])
+				wv.pop(e["x"], e["y"], "+3  SPEED!", Color("5ef2ff"), e["z"])
 				play("ring")
 			"balloon":
-				wv.burst(e["x"], e["y"], 10, Color("ff5d8f"), 8.0)
-				wv.pop(e["x"], e["y"], "BOING!", Color("ff8fb1"))
+				wv.burst(e["x"], e["y"], 10, Color("ff5d8f"), 8.0, 0.6, -4.0, e["z"])
+				wv.pop(e["x"], e["y"], "BOING!", Color("ff8fb1"), e["z"])
 				play("bounce")
 			"bird":
-				wv.burst(e["x"], e["y"], 12, Color("3b3b4f"), 8.0)
-				wv.pop(e["x"], e["y"], "OUCH", Color("ff6b6b"))
+				wv.burst(e["x"], e["y"], 12, Color("3b3b4f"), 8.0, 0.6, -4.0, e["z"])
+				wv.pop(e["x"], e["y"], "OUCH", Color("ff6b6b"), e["z"])
 				wv.shake = 0.7
 				play("crash")
 			"storm":
-				wv.pop(e["x"], e["y"], "STORM!", Color("c0c8ff"))
+				wv.pop(e["x"], e["y"], "STORM!", Color("c0c8ff"), e["z"])
 				wv.shake = 0.4
 			"boost":
 				play("boost")
 				wv.shake = 0.2
 			"bounce":
 				if e["v"] > 6.0:
-					wv.burst(e["x"], 0.0, 6, Color("d9c7a0"), 5.0, 0.5, 6.0)
+					wv.burst(e["x"], e["y"], 6, Color("d9c7a0"), 5.0, 0.5, 6.0, e["z"])
 					play("bounce")
 					wv.shake = minf(0.6, e["v"] * 0.02)
 	f.events.clear()
 
 func _update_flight_hud() -> void:
 	var f = flight
-	lbl["dist"].text = "%s m" % fmt(maxf(0.0, f.x))
-	lbl["hs"].text = "Height %d m   Speed %d m/s" % [int(f.y), int(f.speed())]
-	lbl["zone"].text = Cfg.ZONES[Cfg.zone_at(f.x, f.y)]
+	lbl["dist"].text = "%s m" % fmt(f.dist())
+	lbl["hs"].text = "Height %d m   Speed %d m/s   Bank %d" % [int(f.y), int(f.speed()), int(roundf(rad_to_deg(f.phi)))]
+	lbl["zone"].text = Cfg.ZONES[Cfg.zone_at(f.dist(), f.y)]
 	if lbl["fuel"].visible:
 		lbl["fuel"].value = maxf(0.0, f.fuel)
 	var b: Button = lbl["boost"]
 	if b.visible:
 		b.text = "BOOST x%d" % f.charges
 		b.disabled = f.charges <= 0
+	var tilt_chosen: bool = int(d["settings"]["ctrl"]) == 1
+	joy.visible = not tilt_live
 	if f.stall:
-		lbl["tiltR"].text = "STALL! ease off"
+		lbl["ctrlhint"].text = "STALL! push the stick forward"
+	elif tilt_chosen and not tilt_live:
+		lbl["ctrlhint"].text = "No tilt sensor: using the stick"
+	elif tilt_live:
+		lbl["ctrlhint"].text = "Tilt your phone to fly"
 	else:
-		lbl["tiltR"].text = "hold: NOSE UP >"
+		lbl["ctrlhint"].text = "Pull back = climb, left / right = turn"
+
+# ------------------------------------------------------------------ settings (controls), saved with the game
+func _show_settings() -> void:
+	var st: Dictionary = d["settings"]
+	var vb := _panel_box(0.9, false)
+	vb.add_child(label("Controls", 46, COL_ACC, HORIZONTAL_ALIGNMENT_CENTER))
+	var tilt_on: bool = int(st["ctrl"]) == 1
+	var sb := btn("Steering: %s" % ("PHONE TILT" if tilt_on else "STICK"), func():
+		st["ctrl"] = 0 if tilt_on else 1
+		save_now()
+		_show_settings(), 90)
+	sb.name = "CtrlModeBtn"
+	vb.add_child(sb)
+	var g: Vector3 = gravity_override if gravity_override != Vector3.ZERO else Input.get_gravity()
+	var sensor := Controls.sensor_ok(g)
+	var info := "Stick: bottom left. Pull back = nose up, push = nose down, left / right = bank and turn."
+	if tilt_on:
+		info = "Tilt: lean the top of the phone towards you = nose up, away = nose down; lean left / right to bank. " + ("Sensor found." if sensor else "No tilt sensor found here: the stick is used instead.")
+	vb.add_child(label(info, 24, Color("cfe8ff")))
+	var ib := btn("Invert pitch: %s" % ("ON" if st["invert"] else "OFF"), func():
+		st["invert"] = not st["invert"]
+		save_now()
+		_show_settings(), 84)
+	ib.name = "InvertBtn"
+	vb.add_child(ib)
+	var cb := btn("CALIBRATE TILT (current pose = level)", func():
+		var gg: Vector3 = gravity_override if gravity_override != Vector3.ZERO else Input.get_gravity()
+		if Controls.sensor_ok(gg):
+			var a := Controls.tilt_angles(gg)
+			st["cal_x"] = a.x
+			st["cal_y"] = a.y
+			save_now()
+		_show_settings(), 84)
+	cb.name = "CalibrateBtn"
+	cb.add_theme_font_size_override("font_size", 24)
+	vb.add_child(cb)
+	var cl := btn("DONE", _close_dialog, 90, true)
+	cl.name = "SettingsDone"
+	vb.add_child(cl)

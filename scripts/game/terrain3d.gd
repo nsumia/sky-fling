@@ -1,59 +1,36 @@
 extends RefCounted
 ## Procedural low-poly terrain chunks (TCH metres long, along +x) plus scenery, all in ONE mesh per chunk (vertex colours).
-## Ground zones follow Cfg.ZONE_DIST. A flat corridor (|z| < 14) keeps y = 0 where the flight physics lives.
+## The height field itself is core/terrain.gd (shared with the flight physics). Grid: 16 m rows within +-176 m of the launch axis.
 const Cfg = preload("res://scripts/core/cfg.gd")
 const MB = preload("res://scripts/game/mesh_builder.gd")
 const TCH := 80.0
 const XS := 8.0
-const ZS := [-640.0, -400.0, -250.0, -165.0, -112.0, -78.0, -54.0, -35.0, -22.0, -12.0, 0.0, 12.0, 22.0, 35.0, 54.0, 78.0, 112.0, 165.0, 250.0, 400.0, 640.0]
-const AMP := [3.5, 11.0, 1.5, 7.0, 32.0, 17.0]
-const BASE := [0.0, 0.0, -2.6, 0.0, 0.0, 0.0]
-const CORR := [0.0, 0.0, -0.35, 0.0, 0.0, 0.0]
-const RIDGE := [0.0, 0.1, 0.0, 0.0, 1.0, 0.7]
-const DUNE := [0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+const ZS := [-640.0, -480.0, -360.0, -270.0, -200.0, -176.0, -160.0, -144.0, -128.0, -112.0, -96.0, -80.0, -64.0, -48.0, -32.0, -16.0, 0.0, 16.0, 32.0, 48.0, 64.0, 80.0, 96.0, 112.0, 128.0, 144.0, 160.0, 176.0, 200.0, 270.0, 360.0, 480.0, 640.0]
+const Terrain = preload("res://scripts/core/terrain.gd")
 const COL_A := [Color("62c43c"), Color("3fae48"), Color("f0d890"), Color("f0b45a"), Color("8a8f9c"), Color("e4f0fa")]
 const COL_B := [Color("8fd94a"), Color("2f8f45"), Color("2a9ec0"), Color("d79a42"), Color("5d6573"), Color("b4cbe2")]
 
-static func chain(arr: Array, x: float) -> float:
-	var v: float = arr[0]
-	for k in range(1, arr.size()):
-		var bx: float = Cfg.ZONE_DIST[k]
-		v += smoothstep(bx - 60.0, bx + 60.0, x) * (float(arr[k]) - float(arr[k - 1]))
-	return v
-
-static func chain_col(a: Array, x: float) -> Color:
+static func chain_col(a: Array, x: float, z: float) -> Color:
+	var r := sqrt(x * x + z * z)
 	var c: Color = a[0]
 	for k in range(1, a.size()):
 		var bx: float = Cfg.ZONE_DIST[k]
-		c = c.lerp(a[k], smoothstep(bx - 60.0, bx + 60.0, x))
+		c = c.lerp(a[k], smoothstep(bx - 60.0, bx + 60.0, r))
 	return c
 
-static func zone_idx(x: float) -> int:
-	var f := chain([0, 1, 2, 3, 4, 5], x)
-	return clampi(int(round(f)), 0, 5)
+static func zone_idx(x: float, z: float) -> int:
+	return Terrain.zone_idx(x, z)
 
 static func noise(x: float, z: float) -> float:
-	var n := sin(x * 0.043 + z * 0.031) * 0.5 + sin(x * 0.021 - z * 0.057 + 1.7) * 0.3 + sin(x * 0.11 + z * 0.09 + 0.5) * 0.2
-	return n * 0.5 + 0.5   # 0..1
+	return Terrain.noise(x, z)
 
 static func height(x: float, z: float) -> float:
-	var az := absf(z)
-	var cz := smoothstep(14.0, 52.0, az)
-	var n := noise(x, z)
-	var ridge := chain(RIDGE, x)
-	if ridge > 0.0:
-		var r := 1.0 - absf(sin(x * 0.031 + sin(z * 0.045) * 1.6) * 0.6 + sin(z * 0.05 - x * 0.02) * 0.4)
-		n = lerpf(n, r * r, ridge)
-	var dune := chain(DUNE, x)
-	if dune > 0.0:
-		n = lerpf(n, 0.5 + 0.5 * sin(x * 0.055 + z * 0.02 + 2.0 * sin(z * 0.07)), dune)
-	var h := chain(BASE, x) * cz + chain(AMP, x) * n * cz
-	return lerpf(chain(CORR, x), h, cz) if cz > 0.0 else chain(CORR, x)
+	return Terrain.height(x, z)
 
 static func face_col(x: float, z: float, h: float, jit: float) -> Color:
-	var zi := zone_idx(x)
+	var zi := zone_idx(x, z)
 	var n := noise(x * 1.7, z * 1.3)
-	var c := chain_col(COL_A, x).lerp(chain_col(COL_B, x), n)
+	var c := chain_col(COL_A, x, z).lerp(chain_col(COL_B, x, z), n)
 	if zi == 2:
 		c = Color("ecd9a0") if h > -0.9 else Color("3fb0c8").lerp(Color("1f7fa0"), clampf(-h / 3.0, 0.0, 1.0))
 	if zi == 4 and h > 11.0:
@@ -110,14 +87,10 @@ static func _tree(b: MB, p: Vector3, s: float, rng: RandomNumberGenerator, pine:
 		b.sphere(p + Vector3(0.7 * s, 2.2 * s, 0.4 * s), 1.0 * s, leaf.lightened(0.08), 3, 6)
 
 static func _scenery(b: MB, idx: int, x0: float, rng: RandomNumberGenerator) -> void:
-	# centre-line dashes (speed cue) and distance posts
+	# distance posts along the launch axis (landmarks)
 	var sx := ceilf(x0 / 10.0) * 10.0
 	while sx < x0 + TCH:
 		var big := fmod(sx, 100.0) < 0.5
-		if fmod(sx, 20.0) < 0.5 and sx > 0.0:
-			var zi0 := zone_idx(sx)
-			if zi0 != 2:
-				b.box(Vector3(sx, 0.02, 0), Vector3(1.6, 0.04, 0.4), Color(1, 1, 1))
 		if fmod(sx, 50.0) < 0.5 and sx > 0.0:
 			var gy := height(sx, -7.0)
 			b.box(Vector3(sx, gy + 1.6, -7.0), Vector3(0.18, 3.2, 0.18), Color("f5f5f5"))
@@ -136,7 +109,7 @@ static func _scenery(b: MB, idx: int, x0: float, rng: RandomNumberGenerator) -> 
 		var z := side * az
 		var h := height(x, z)
 		var p := Vector3(x, h, z)
-		var zi := zone_idx(x)
+		var zi := zone_idx(x, z)
 		var s := 0.7 + rng.randf() * 0.9
 		match zi:
 			0:

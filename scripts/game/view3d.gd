@@ -8,10 +8,11 @@ const Plane3D = preload("res://scripts/game/plane3d.gd")
 const Sling3D = preload("res://scripts/game/sling3d.gd")
 const Terrain3D = preload("res://scripts/game/terrain3d.gd")
 const Ents3D = preload("res://scripts/game/ents3d.gd")
+const Terrain = preload("res://scripts/core/terrain.gd")
 
 const SLING_P := Vector3(0.0, 3.0, 0.0)           # plane start = pouch rest position
-const LAUNCH_POS := Vector3(-6.5, 5.0, 16.5)
-const LAUNCH_LOOK := Vector3(2.4, 5.6, 0.0)
+const LAUNCH_POS := Vector3(-9.5, 5.2, 0.0)     # behind the slingshot, looking along the launch heading (+x)
+const LAUNCH_LOOK := Vector3(2.0, 3.2, 0.0)
 const FOV := 62.0
 const SKY_SHADER := """
 shader_type spatial;
@@ -95,7 +96,7 @@ var cmm: MultiMesh
 var cmi: MultiMeshInstance3D
 var amm: MultiMesh
 var ami: MultiMeshInstance3D
-var cl_key := Vector2i(-99999, -99999)
+var cl_key3 := Vector3i(-99999, -99999, -99999)
 
 var chunks := {}            # idx -> MeshInstance3D
 var chunk_pool: Array = []
@@ -112,6 +113,8 @@ var cam_look := LAUNCH_LOOK
 var last_mode := ""
 var idle_t := 0.0
 var bank := 0.0
+var cam_yaw := 0.0
+var cam_bank := 0.0
 var prev_th := 0.0
 var pop_t := 0.0
 var show_t := 0.0
@@ -186,7 +189,7 @@ func _build_scene() -> void:
 	# water
 	water = MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(1800.0, 1400.0)
+	pm.size = Vector2(1800.0, 1800.0)
 	water.mesh = pm
 	var wm := StandardMaterial3D.new()
 	wm.albedo_color = Color(0.08, 0.5, 0.92, 0.8)
@@ -222,6 +225,9 @@ func _build_scene() -> void:
 	cmat.vertex_color_use_as_albedo = true
 	cmat.roughness = 1.0
 	cmat.metallic_specular = 0.0
+	cmat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER   # a puff you fly into dissolves instead of blocking the view
+	cmat.distance_fade_min_distance = 10.0
+	cmat.distance_fade_max_distance = 34.0
 	cmi.material_override = cmat
 	world.add_child(cmi)
 	amm = _make_mm(_ball_mesh(6, 3), 30, true)
@@ -335,21 +341,21 @@ func launch_project(p: Vector3, vp: Vector2) -> Vector2:
 	return _proj(launch_transform(), FOV, p, vp)
 
 func launch_unproject(s: Vector2, vp: Vector2) -> Vector2:
-	# screen pixel -> point on the z=0 plane (x, height) as seen by the fixed launch camera
+	# screen pixel -> point on the plane x = 0 (through the slingshot) as seen by the fixed launch camera: returns (z, height)
 	var t := launch_transform()
 	var th := tan(deg_to_rad(FOV) * 0.5)
 	var dc := Vector3((s.x / vp.x - 0.5) * 2.0 * th, (vp.y * 0.5 - s.y) * 2.0 * th / vp.x, -1.0)
 	var d := t.basis * dc
-	if absf(d.z) < 1e-5:
-		return Vector2(SLING_P.x, SLING_P.y)
-	var k := -t.origin.z / d.z
+	if absf(d.x) < 1e-5:
+		return Vector2(SLING_P.z, SLING_P.y)
+	var k := -t.origin.x / d.x
 	var p := t.origin + d * k
-	return Vector2(p.x, p.y)
+	return Vector2(p.z, p.y)
 
 func launch_ppm(vp: Vector2) -> Vector2:
-	# screen pixels per metre along world x and y at the slingshot
+	# screen pixels per metre along world z (sideways) and y (height) at the slingshot
 	var o := launch_project(SLING_P, vp)
-	return Vector2(absf(launch_project(SLING_P + Vector3.RIGHT, vp).x - o.x), absf(launch_project(SLING_P + Vector3.UP, vp).y - o.y))
+	return Vector2(absf(launch_project(SLING_P + Vector3.BACK, vp).x - o.x), absf(launch_project(SLING_P + Vector3.UP, vp).y - o.y))
 
 # ------------------------------------------------------------------ plane
 func _rebuild_plane(lv: Dictionary) -> void:
@@ -397,38 +403,30 @@ func sync(wv, dt: float) -> void:
 	if first:
 		idle_t = 0.0
 	last_mode = mode
-	var tgt_px := 0.0
-	var tgt_py := 0.0
 	var sp := 0.0
 	var thrust := 0.0
 	var boost := 0.0
+	var tgt := Vector3(0.0, 3.0, 0.0)
 	match mode:
 		"launch":
-			tgt_px = 0.0
-			tgt_py = 3.0
-			var pw: Vector2 = wv.pull_world()
-			var pc := SLING_P + Vector3(pw.x, pw.y, 0.0)
-			var ang := 0.0
-			if wv.pull.length() > 4.0:
-				ang = atan2(-pw.y, -pw.x)
-			_set_plane_pose(pc, ang, 0.0, 1.0, dt, false)
-			_update_sling(pc, ang)
+			var pc: Vector3 = SLING_P + wv.pull_world()
+			var bs := Basis(Vector3.UP, wv.aim_yaw) * Basis(Vector3.BACK, wv.aim_pitch)
+			_set_plane_basis(pc, bs, 1.0, dt, false)
+			_update_sling(pc, bs)
 			_update_aim(wv)
 			_update_camera_launch(dt, first)
 			thrust = 0.0
 		"flight", "idle":
 			if f != null:
-				tgt_px = f.x
-				tgt_py = f.y
+				tgt = Vector3(f.x, f.y, f.z)
 				sp = f.speed()
 				thrust = 1.0 if (mode == "flight" and f.thrusting) else 0.0
 				boost = 1.0 if (mode == "flight" and f.boosting) else 0.0
-				var th: float = f.th if mode == "flight" else f.th * 0.3
-				var want_bank := clampf(-float(f.om) * 0.3, -0.7, 0.7) if mode == "flight" else 0.0
-				if f.stall:
-					want_bank += sin(time * 22.0) * 0.25
-				bank = lerpf(bank, want_bank, minf(1.0, dt * 6.0))
-				_set_plane_pose(Vector3(f.x, f.y, 0.0), th, bank, 1.0, dt)
+				var bs2 := Basis(Vector3.UP, f.psi) * Basis(Vector3.BACK, f.th) * Basis(Vector3.RIGHT, f.phi)
+				if f.stall and mode == "flight":
+					bs2 = bs2 * Basis(Vector3.RIGHT, sin(time * 22.0) * 0.12)
+				bank = f.phi
+				_set_plane_basis(tgt, bs2, 1.0, dt)
 				if mode == "flight":
 					_update_camera_flight(dt, f, sp, first)
 				else:
@@ -446,16 +444,16 @@ func sync(wv, dt: float) -> void:
 		spin = 0.12
 	Plane3D.animate(plane, time, thrust, boost, spin)
 	if mode != "hangar":
-		_sync_world(wv, tgt_px, tgt_py, f, mode, dt)
-	_update_sky(wv, mode, tgt_py)
+		_sync_world(wv, tgt, f, mode, dt)
+	_update_sky(wv, mode, tgt.y)
 	_update_particles(wv)
 	if cam != null and wv.shake > 0.0:
 		cam.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * wv.shake * 0.55
 	dome.global_position = cam.global_position
 
-func _set_plane_pose(pos: Vector3, th: float, bk: float, sc: float, dt := 0.0, on_ground := true) -> void:
+func _set_plane_basis(pos: Vector3, bs: Basis, sc: float, dt := 0.0, on_ground := true) -> void:
 	plane.position = pos + Vector3(0, -plane_ground if on_ground else 0.0, 0)
-	plane.basis = Basis(Vector3.BACK, th) * Basis(Vector3.RIGHT, bk)
+	plane.basis = bs
 	var s := sc * (1.0 + 0.25 * sin(pop_t * PI / 0.5) if pop_t > 0.0 else sc)
 	plane.scale = Vector3.ONE * s
 	if pop_t > 0.0:
@@ -472,27 +470,51 @@ func _update_camera_launch(dt: float, first: bool) -> void:
 	cam.fov = lerpf(cam.fov, FOV, k)
 	_look(cam_pos, cam_look)
 
+func _hd(yaw: float) -> Vector3:
+	return Vector3(cos(yaw), 0.0, -sin(yaw))
+
+func _clear_ground(p: Vector3, clear: float) -> Vector3:
+	p.y = maxf(p.y, Terrain.ground(p.x, p.z) + clear)
+	return p
+
+## Chase camera BEHIND the plane: it trails the course with a smooth lag, banks a little with the plane and widens the FOV with speed.
 func _update_camera_flight(dt: float, f, sp: float, first: bool) -> void:
 	var spc := minf(sp, 60.0)
-	var back := 8.5 + spc * 0.08
-	var side := 9.5 + spc * 0.1
-	var rise := 2.4 + spc * 0.03
-	var want := Vector3(f.x - back, maxf(2.2, f.y + rise), side)
-	var look := Vector3(f.x + 7.0 + sp * 0.14, f.y + 0.4, 0.0)
-	var k := minf(1.0, dt * (4.5 if not first else 1.5))
+	var back := 9.0 + spc * 0.06
+	var rise := 2.7 + spc * 0.02
+	var target_yaw: float = f.course() if f.ground_speed() > 3.0 else f.psi
+	if first:
+		cam_yaw = f.psi
+	else:
+		cam_yaw = lerp_angle(cam_yaw, target_yaw, minf(1.0, dt * 3.2))
+	var hd := _hd(cam_yaw)
+	var p := Vector3(f.x, f.y, f.z)
+	var want := _clear_ground(p - hd * back + Vector3(0, rise, 0), 1.5)
+	var look := p + hd * (7.0 + sp * 0.14) + Vector3(0, 0.3 + clampf(f.vy * 0.12, -3.0, 3.0), 0)
+	var k := minf(1.0, dt * (5.5 if not first else 1.5))
 	cam_pos = cam_pos.lerp(want, k)
-	cam_look = cam_look.lerp(look, minf(1.0, dt * 6.0))
+	cam_look = cam_look.lerp(look, minf(1.0, dt * 7.0))
 	cam.fov = lerpf(cam.fov, FOV + minf(14.0, sp * 0.16), minf(1.0, dt * 2.0))
-	_look(cam_pos, cam_look)
+	cam_bank = lerpf(cam_bank, f.phi * 0.35, minf(1.0, dt * 4.0))
+	var right := Vector3(sin(cam_yaw), 0.0, cos(cam_yaw))
+	var upv := (Vector3.UP * cos(cam_bank) + right * sin(cam_bank)).normalized()
+	var dir := cam_look - cam_pos
+	if dir.length() < 0.01:
+		dir = hd
+	cam.global_transform = Transform3D(Basis.looking_at(dir, upv), cam_pos)
 
 func _update_camera_idle(dt: float, f) -> void:
 	# landing / crash move: swing round to a close three-quarter view of the plane
 	var a := minf(idle_t, 2.5) * 0.35
-	var want := Vector3(f.x - 4.5 * cos(a) + 1.5, maxf(1.6, f.y + 2.0), 7.5 + 2.0 * sin(a))
+	var hd := _hd(f.psi)
+	var right := Vector3(sin(f.psi), 0.0, cos(f.psi))
+	var p := Vector3(f.x, f.y, f.z)
+	var want := _clear_ground(p + hd * (-4.5 * cos(a) + 1.5) + right * (7.5 + 2.0 * sin(a)) + Vector3(0, 2.0, 0), 1.6)
 	var k := minf(1.0, dt * 2.6)
 	cam_pos = cam_pos.lerp(want, k)
-	cam_look = cam_look.lerp(Vector3(f.x, f.y + 0.6, 0.0), minf(1.0, dt * 5.0))
+	cam_look = cam_look.lerp(p + Vector3(0, 0.6, 0), minf(1.0, dt * 5.0))
 	cam.fov = lerpf(cam.fov, 54.0, k)
+	cam_bank = lerpf(cam_bank, 0.0, k)
 	_look(cam_pos, cam_look)
 
 func _update_hangar(dt: float, wv) -> void:
@@ -547,10 +569,10 @@ func _align(mi: MeshInstance3D, a: Vector3, b: Vector3, thick: float) -> void:
 	var z := x.cross(y).normalized()
 	mi.global_transform = Transform3D(Basis(x * thick, y * l, z * thick), (a + b) * 0.5)
 
-func _update_sling(pc: Vector3, ang: float) -> void:
+func _update_sling(pc: Vector3, bs: Basis) -> void:
 	var tz := Sling3D.tip_z(sling_lv)
 	var ty := Sling3D.tip_y(sling_lv)
-	var q := pc + Vector3(-0.25, -0.12, 0.0)
+	var q := pc + bs.x * -0.25 + Vector3(0, -0.12, 0)
 	var stretch := q.distance_to(Vector3(0, ty, tz))
 	var th := clampf(1.5 / (1.0 + maxf(0.0, stretch - 1.6) * 0.18), 0.55, 1.5) * (0.9 + 0.12 * sling_lv * 0.2)
 	band_l.visible = true
@@ -558,45 +580,52 @@ func _update_sling(pc: Vector3, ang: float) -> void:
 	_align(band_l, Vector3(0, ty, tz), q, th)
 	_align(band_r, Vector3(0, ty, -tz), q, th)
 	pouch.position = q + Vector3(0, -0.1, 0)
-	pouch.rotation = Vector3(0, 0, ang)
+	pouch.basis = bs
 
 func _update_aim(wv) -> void:
 	var pts: Array = wv.aim_world
 	var n := pts.size()
 	for i in n:
-		var p: Vector2 = pts[i]
+		var p: Vector3 = pts[i]
 		var s := 0.2 - float(i) * 0.004
-		var tr := Transform3D(Basis.from_scale(Vector3.ONE * maxf(0.06, s)), Vector3(p.x, p.y, 0.0))
+		var tr := Transform3D(Basis.from_scale(Vector3.ONE * maxf(0.06, s)), p)
 		amm.set_instance_transform(i, tr)
 		amm.set_instance_color(i, Color(1, 1, 1, 0.95 - float(i) * 0.025))
 	amm.visible_instance_count = mini(n, 30)
 
 # ------------------------------------------------------------------ world: chunks, entities, clouds
-func _sync_world(wv, px: float, py: float, f, mode: String, dt: float) -> void:
+func _sync_world(wv, tgt: Vector3, f, mode: String, dt: float) -> void:
+	var px := tgt.x
+	var py := tgt.y
+	var pz := tgt.z
 	var fresh := mode != "flight"
-	_sync_chunks(px, py, fresh)
+	var east := 1.0 if f == null else (1.0 if cos(f.psi) > -0.3 else -1.0)
+	_sync_chunks(px, py, fresh, east)
 	terrain_root.visible = py < 760.0
 	water.visible = py < 600.0
-	water.position = Vector3(floorf(px / 100.0) * 100.0 + 300.0, -0.12, 0)
+	water.position = Vector3(floorf(px / 100.0) * 100.0, -0.12, floorf(pz / 100.0) * 100.0)
 	if f != null and (mode == "flight" or mode == "idle"):
 		_sync_entities(f)
 	else:
 		_release_all_ents()
-	# blob shadow
-	var hgt := maxf(0.0, py)
+	# blob shadow on the ground under the plane (follows the terrain), long axis along the heading
+	var gnd := Terrain.ground(px, pz)
+	var hgt := maxf(0.0, py - gnd)
 	shadow.visible = hgt < 140.0 and mode != "hangar"
 	if shadow.visible:
 		var sc := 1.1 + hgt * 0.025
-		shadow.position = Vector3(px, 0.06, 0.0)
+		shadow.position = Vector3(px, gnd + 0.08, pz)
+		shadow.rotation = Vector3(0, f.psi if f != null else 0.0, 0)
 		shadow.scale = Vector3(sc * 1.6, 1.0, sc)
 		(shadow.material_override as StandardMaterial3D).albedo_color.a = clampf(0.34 - hgt * 0.0022, 0.05, 0.34)
 	_update_clouds()
 
-func _sync_chunks(px: float, py: float, force_all: bool) -> void:
+func _sync_chunks(px: float, py: float, force_all: bool, east := 1.0) -> void:
 	var ci := floori(px / Terrain3D.TCH)
 	var ahead := 6 + clampi(int(py / 150.0), 0, 4)
-	var lo := ci - 1
-	var hi := ci + ahead
+	# the window of terrain chunks (along x) lies in the direction of flight
+	var lo := ci - 1 if east > 0.0 else ci - ahead
+	var hi := ci + ahead if east > 0.0 else ci + 1
 	for idx in chunks.keys():
 		if idx < lo or idx > hi:
 			var mi: MeshInstance3D = chunks[idx]
@@ -608,8 +637,8 @@ func _sync_chunks(px: float, py: float, force_all: bool) -> void:
 	var budget := 99 if force_all else chunk_budget
 	var order: Array = [ci]
 	for k in range(1, ahead + 1):
-		order.append(ci + k)
-	order.append(ci - 1)
+		order.append(ci + int(east) * k)
+	order.append(ci - int(east))
 	for idx in order:
 		if chunks.has(idx):
 			continue
@@ -690,9 +719,12 @@ func _release_all_ents() -> void:
 		_release(id)
 
 func _sync_entities(f) -> void:
-	var ci := int(floor(f.x / 120.0))
+	var lp: Vector2 = f.local_pos()
+	var ci := int(floor(lp.x / 120.0))
 	var seen := {}
 	var t: float = f.t
+	var cpos := cam.global_position
+	var fwd := -cam.global_transform.basis.z
 	for i in range(ci - 1, ci + 3):
 		if i < 0:
 			continue
@@ -701,42 +733,47 @@ func _sync_entities(f) -> void:
 			if f.taken.has(id):
 				continue
 			var tp: int = e["t"]
-			var ex: float = e["x"]
+			var eu: float = e["x"]
 			var ey: float = e["y"]
+			var ew: float = e["z"]
 			if tp == World.BIRD:
 				ey += sin(t * 2.0 + e["ph"]) * 6.0
-				ex += cos(t * 1.3 + e["ph"]) * 5.0
-			var w: float = e.get("w", 0.0)
-			if ex + w < f.x - 45.0 or ex > f.x + 330.0:
+				eu += cos(t * 1.3 + e["ph"]) * 5.0
+				ew += sin(t * 0.9 + e["ph"]) * 8.0
+			if eu + 16.0 < lp.x - 45.0 or eu > lp.x + 330.0:
 				continue
 			seen[id] = true
 			var n: Node3D
+			if ents.has(id) and ent_type[id] != tp:
+				_release(id)   # a new flight (other seed) reuses ids: never animate a node of the wrong kind
 			if ents.has(id):
 				n = ents[id]
 			else:
 				n = _acquire(tp, e["r"])
 				ents[id] = n
 				ent_type[id] = tp
+			var wp: Vector2 = World.to_world(eu, ew, f.yaw0)
 			if tp == World.UPDRAFT:
 				var h: float = e["h"]
+				var w: float = e["w"]
 				var col: Node3D = n.get_node("col")
 				col.scale = Vector3(w * 0.5, h, w * 0.5)
 				col.position = Vector3(0, h * 0.5, 0)
-				n.position = Vector3(ex + w * 0.5, 0, 0)
+				n.position = Vector3(wp.x, Terrain.ground(wp.x, wp.y), wp.y)
 				for k in 7:
 					var s: Node3D = n.get_node("s%d" % k)
 					var ph := fposmod(t * 0.6 + float(k) * 0.143, 1.0)
 					var ang := float(k) * 2.4
 					s.position = Vector3(cos(ang) * w * 0.3, 2.0 + ph * (h - 4.0), sin(ang) * w * 0.3)
-					s.scale = Vector3(1, 1.0 + 0.0 * ph, 1) * (1.0 + h * 0.01)
+					s.scale = Vector3(1, 1.0, 1) * (1.0 + h * 0.01)
 			else:
-				n.position = Vector3(ex, ey, 0.0)
+				n.position = Vector3(wp.x, ey, wp.y)
 				n.scale = Vector3.ONE
 				Ents3D.animate(n, tp, t, e, 0.0)
+				if tp == World.RING or tp == World.BIRD:
+					n.rotation.y = f.yaw0   # rings face along the corridor, birds fly towards the plane
 				# shrink / hide pickups that are close to or behind the camera so they never fill the screen
-				var cpos := cam.global_position
 				var dist := cpos.distance_to(n.position)
-				var fwd := -cam.global_transform.basis.z
 				var lo := 8.0 + float(e["r"])
 				var fade := clampf((dist - lo) / 4.0, 0.0, 1.0)
 				if fwd.dot(n.position - cpos) < 0.0:
@@ -765,23 +802,23 @@ func _cloud_density(y: float) -> float:
 
 func _update_clouds() -> void:
 	var cp := cam.global_position
-	var key := Vector2i(floori(cp.x / 70.0), floori(cp.y / 50.0))
-	if key == cl_key:
+	var key := Vector3i(floori(cp.x / 90.0), floori(cp.y / 50.0), floori(cp.z / 90.0))
+	if key == cl_key3:
 		return
-	cl_key = key
+	cl_key3 = key
 	var n := 0
-	for gx in range(key.x - 2, key.x + 7):
-		for gy in range(key.y - 2, key.y + 3):
-			for gz in 4:
-				var h0 := _hash3(gx, gy, gz)
+	for gx in range(key.x - 3, key.x + 4):
+		for gz in range(key.z - 3, key.z + 4):
+			for gy in range(key.y - 2, key.y + 3):
+				var h0 := _hash3(gx * 31 + gz * 17, gy, gz + 5)
 				var cy := (float(gy) + _hash3(gx, gy, gz + 40)) * 50.0
-				if h0 >= _cloud_density(cy) or n > 400:
+				if h0 >= _cloud_density(cy) * 0.75 or n > 400:
 					continue
-				var cx := (float(gx) + _hash3(gx, gy, gz + 20)) * 70.0
-				var cz := -28.0 - float(gz) * 45.0 - _hash3(gx, gy, gz + 60) * 30.0
+				var cx := (float(gx) + _hash3(gx, gy, gz + 20)) * 90.0
+				var cz := (float(gz) + _hash3(gx, gy, gz + 60)) * 90.0
 				var big := 5.0 + _hash3(gx, gy, gz + 80) * 6.0
-				for k in 4:
-					var ox := (float(k) - 1.5) * big * 0.9 + _hash3(gx, gy + k, gz) * 3.0
+				for k in 3:
+					var ox := (float(k) - 1.0) * big * 0.9 + _hash3(gx, gy + k, gz) * 3.0
 					var oy := (0.4 if k % 2 == 0 else 0.0) * big * 0.5
 					var sc := big * (0.62 + 0.16 * float(k % 3))
 					cmm.set_instance_transform(n, Transform3D(Basis.from_scale(Vector3(sc * 1.15, sc * 0.62, sc * 0.9)), Vector3(cx + ox, cy + oy, cz)))

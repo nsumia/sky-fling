@@ -76,6 +76,27 @@ func _init() -> void:
 	print("initial pitch rate after 0.1 s full pull (tail 0 / 3 / 6): %s rad/s; pitch gain %s rad" % [str(gains), str(pitched)])
 	check("pull-up raises the pitch", pitched[0] > 0.005 and pitched[1] > 0.005 and pitched[2] > 0.005, str(pitched))
 	check("initial pitch authority (rate) grows with the tail level", gains[1] > gains[0] * 1.1 and gains[2] > gains[1] * 1.1, str(gains))
+	# absolute: level-0 pitch rate beats v2's tail-0 constants (auth 3.4, stiff 7.0) run through the same model, and a floor in rad/s
+	var sv2 := Stats.compute(lv_all(2, {"tail": 0}))
+	sv2["auth"] = 3.4
+	sv2["stiff"] = 7.0
+	var fv2 := Flight.new(sv2, 7, 1.0, 0.1, 0.0)
+	for i in 400:
+		fv2.chunks[i] = []
+	var f2b := Flight.new(sv2, 7, 1.0, 0.1, 0.0)
+	for i in 400:
+		f2b.chunks[i] = []
+	for ff in [fv2, f2b]:
+		ff.vx = 22.0
+		ff.vy = 0.0
+		ff.th = 0.0
+		ff.y = 400.0
+	run(fv2, 6, 1.0, 0.0)
+	run(f2b, 6, 0.0, 0.0)
+	var v2_rate: float = fv2.om - f2b.om
+	print("level-0 pitch rate: v3 %.3f rad/s vs v2 constants %.3f rad/s" % [gains[0], v2_rate])
+	check("level-0 pitch rate is higher than v2's (>= 1.15x)", gains[0] >= v2_rate * 1.15, "%f vs %f" % [gains[0], v2_rate])
+	check("level-0 pitch rate has an absolute floor (>= 0.5 rad/s after 0.1 s)", gains[0] >= 0.5, str(gains[0]))
 	var fd := empty_flight(lv, 0.1)
 	fd.y = 400.0
 	run(fd, 40, -1.0, 0.0)
@@ -97,7 +118,7 @@ func _init() -> void:
 			rec_t = fs.t
 	print("stall test: stalled=%s, first non-stalled time %.2f s, alive y=%.0f speed=%.1f" % [str(stalled), rec_t, fs.y, fs.speed()])
 	check("a nose-high low-speed plane stalls", stalled)
-	check("it recovers from the stall by itself within 6 s", rec_t > 0.0 and rec_t < 6.0, str(rec_t))
+	check("it recovers from the stall by itself within 2 s", rec_t > 0.0 and rec_t < 2.0, str(rec_t))
 	# --- never below the terrain: random stick through every zone (mountains, sea, dunes)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
@@ -262,4 +283,20 @@ func _init() -> void:
 	check("tilt: calibration makes the current pose neutral", Controls.tilt(top_away, cal) == Vector2.ZERO)
 	check("tilt: dead zone ignores 2 degrees", Controls.tilt(Vector3(9.81 * sin(deg_to_rad(2.0)), -9.81, 0.0), Vector2.ZERO).y == 0.0)
 	check("tilt: full deflection clamps at 1", absf(Controls.tilt(Vector3(9.81 * sin(deg_to_rad(70.0)), -9.81 * cos(deg_to_rad(70.0)), 0.0), Vector2.ZERO).y) == 1.0)
+	# --- no flight-time cap: a long glide from high up continues past 60 s, and every flight still ends by itself
+	var fg := empty_flight(lv_all(3), 0.1)
+	fg.safety_cap = 900.0
+	fg.y = 1800.0
+	fg.vx = 40.0
+	fg.vy = 0.0
+	fg.th = 0.0
+	run(fg, 4200, 0.0, 0.0)
+	print("long glide: t=%.1f s, y=%.0f, done=%s" % [fg.t, fg.y, str(fg.done)])
+	check("a flight continues past 60 s (no time cap)", fg.t > 69.0 and not fg.done, "t=%f done=%s" % [fg.t, str(fg.done)])
+	var guard := 0
+	while not fg.done and guard < 60000:
+		fg.step(0.0, 0.0, false)
+		guard += 1
+	print("long glide ended at t=%.1f s (cap 900)" % fg.t)
+	check("the long flight ends by itself (gravity, drag), not by the safety cap", fg.done and fg.t < 890.0, str(fg.t))
 	finish("FLIGHT3D")

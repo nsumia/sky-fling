@@ -75,6 +75,7 @@ var chunks := {}
 var taken := {}
 var stun := 0.0
 var alpha_now := 0.0
+var safety_cap := 0.0   # tests / bot sim only (0 = none): stops a broken build from hanging; never set for the player
 var ground_t := 0.0   # seconds spent on the ground (a plane that rolls or slides for 10 s has landed)
 
 func _init(stats: Dictionary, seed__: int, pull: float, angle: float, yaw := 0.0) -> void:
@@ -280,7 +281,8 @@ func step(pitch_in: float, roll_in: float, boost: bool) -> void:
 	max_h = maxf(max_h, y)
 	max_dist = maxf(max_dist, dist())
 	ground_t = ground_t + dt if on_ground else 0.0
-	if t >= Cfg.MAX_FLIGHT_TIME or (sp < 2.5 and on_ground and t > 0.5) or ground_t > 10.0:
+	# no flight-time cap: a flight ends on a landing / crash, or when the plane has come to rest (gravity never vanishes, fuel and boosts are finite)
+	if (sp < 2.5 and on_ground and t > 0.5) or ground_t > 10.0 or (safety_cap > 0.0 and t >= safety_cap):
 		done = true
 		landed = on_ground
 	if is_nan(x) or is_nan(y) or is_nan(z) or is_nan(vx) or is_nan(vy) or is_nan(vz) or is_nan(psi) or is_nan(phi):

@@ -19,6 +19,8 @@ func _init() -> void:
 	var total_steps := 0
 	var max_h := 0.0
 	var max_v := 0.0
+	var unended := 0
+	var longest := 0.0
 	for i in n:
 		var lv := {}
 		for c in Cfg.CATS:
@@ -29,7 +31,8 @@ func _init() -> void:
 		var roll := 0.0
 		var boost := false
 		var steps := 0
-		while not f.done and steps < 900:
+		f.safety_cap = 600.0     # tests only: a broken build must not hang
+		while not f.done and steps < 36100:
 			if steps % 17 == 0:
 				tilt = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
 				roll = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
@@ -44,10 +47,15 @@ func _init() -> void:
 				below += 1
 				break
 		total_steps += steps
+		if not f.done or f.t >= 599.0:
+			unended += 1
+		longest = maxf(longest, f.t)
 		max_h = maxf(max_h, f.max_h)
 		max_v = maxf(max_v, f.max_v)
 	print("shard %d: %d flights, %d steps, max height %.0f m, max speed %.0f m/s" % [shard, n, total_steps, max_h, max_v])
 	check("no NaN/Inf in %d random flights" % n, bad_count == 0, "%d bad" % bad_count)
 	check("plane never goes below the terrain", below == 0, "%d" % below)
+	print("longest flight %.1f s, %d flights did not end by themselves" % [longest, unended])
+	check("every random flight ends by itself (no timer, %d flights)" % n, unended == 0, str(unended))
 	check("speeds stay physical", max_v < 2000.0, str(max_v))
 	finish("NAN STRESS")

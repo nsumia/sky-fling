@@ -58,8 +58,9 @@ static func steer(f: Flight, pol: Dictionary) -> float:
 
 static func fly(stats: Dictionary, seed_: int, pol: Dictionary, boost_use := true) -> Flight:
 	var f := Flight.new(stats, seed_, 1.0, pol["ang"], 0.0)
+	f.safety_cap = 900.0
 	var guard := 0
-	while not f.done and guard < 6000:
+	while not f.done and guard < 40000:
 		guard += 1
 		var sp := f.speed()
 		var gam := f.th if sp < 0.5 else asin(clampf(f.vy / sp, -1.0, 1.0))
@@ -88,12 +89,13 @@ static func fly(stats: Dictionary, seed_: int, pol: Dictionary, boost_use := tru
 ## A sloppy pilot: random tilt changes every 0.35 s (used to show that the tail matters).
 static func fly_sloppy(stats: Dictionary, seed_: int, ang := 0.7) -> Flight:
 	var f := Flight.new(stats, seed_, 1.0, ang, 0.0)
+	f.safety_cap = 900.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_ * 7 + 1
 	var tilt := 0.0
 	var roll := 0.0
 	var guard := 0
-	while not f.done and guard < 6000:
+	while not f.done and guard < 40000:
 		guard += 1
 		if guard % 21 == 1:
 			tilt = float(rng.randi_range(-1, 1))

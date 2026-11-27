@@ -3,9 +3,9 @@ extends RefCounted
 
 const SAVE_VERSION := 2
 const DT := 1.0 / 60.0
-const MAX_FLIGHT_TIME := 60.0
 const START_H := 3.0
 const CHUNK := 120.0
+const COST_MUL := 1.8   # part price multiplier (rebalanced when the 60 s flight cap was removed: longer flights pay more)
 
 # --- atmosphere ---
 const CLOUD_ALT := 200.0
@@ -43,7 +43,7 @@ static func part_cost(cat: String, level: int, perks: Dictionary) -> int:
 	# cost to buy `level` (1-based) of a part
 	var p: Dictionary = PART[cat]
 	var c: float = p["base"] * pow(p["growth"], level - 1)
-	c *= price_mul(perks)
+	c *= price_mul(perks) * COST_MUL
 	return maxi(1, int(round(c)))
 
 static func price_mul(perks: Dictionary) -> float:

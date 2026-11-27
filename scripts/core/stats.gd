@@ -26,7 +26,7 @@ static func compute(lv: Dictionary, perks: Dictionary = {}) -> Dictionary:
 		"charges": int(bo),
 		"boost_acc": 9.0 + 3.0 * bo,
 		"boost_time": 1.5,
-		"v_max": 19.0 + 2.4 * s,
+		"v_max": 21.0 + 2.4 * s,
 		"friction": 1.6 - 0.25 * g,
 		"bounce": 0.10 + 0.07 * g,
 		"land_loss": 0.32 - 0.05 * g,

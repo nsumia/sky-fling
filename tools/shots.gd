@@ -43,7 +43,16 @@ func run() -> void:
 	m.d["coins"] = 9000
 	m.open_hangar()
 	await shot("hangar")
+	m.celebrate("Evolved!  Jet")
+	await create_timer(0.5).timeout
+	await shot("evolved")
 	m.to_launch()
 	m.open_panel("Trophies", m._fill_trophies)
 	await shot("trophies")
+	m.to_launch()
+	m.d["life"]["space"] = true
+	m.d["life"]["coins"] = 30000
+	m.d["stars"] = 12
+	m.open_panel("Rebirth", m._fill_rebirth)
+	await shot("rebirth")
 	quit()

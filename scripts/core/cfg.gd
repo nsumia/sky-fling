@@ -8,6 +8,7 @@ const START_H := 3.0
 const CHUNK := 120.0
 
 # --- atmosphere ---
+const CLOUD_ALT := 200.0
 const UPPER_ALT := 400.0
 const SPACE_ALT := 600.0
 
@@ -73,7 +74,7 @@ static func zone_at(x: float, y: float) -> int:
 		return 7
 	if y >= UPPER_ALT:
 		return 6
-	if y >= 200.0:
+	if y >= CLOUD_ALT:
 		return 5
 	var z := 0
 	for i in ZONE_DIST.size() - 1:  # ground zones 0..4 by distance

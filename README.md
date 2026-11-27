@@ -4,7 +4,7 @@ Fling a paper plane from a slingshot, grab coins, bolt on better parts and evolv
 Reach Space, rebirth for Stars, and go even farther. A portrait mobile game made with Godot 4 (GDScript).
 No ads, no in-app purchases, no third-party assets: all art and sound are generated in code.
 
-![launch](docs/screenshots/launch.png) ![flight](docs/screenshots/flight.png) ![hangar](docs/screenshots/hangar.png) ![result](docs/screenshots/result.png)
+![launch](docs/screenshots/launch.png) ![evolved](docs/screenshots/evolved.png) ![rebirth](docs/screenshots/rebirth.png) ![flight](docs/screenshots/flight.png) ![hangar](docs/screenshots/hangar.png) ![result](docs/screenshots/result.png)
 
 ## Controls
 | Action | Touch | Keyboard / mouse |
@@ -20,7 +20,7 @@ No ads, no in-app purchases, no third-party assets: all art and sound are genera
 - 7 plane tiers: Paper plane, Balsa glider, Biplane, Prop plane, Jet, Rocket plane, Space plane, with an "Evolved!" celebration.
 - 8 sky zones (Meadow, Hills, Sea, Desert, Mountains, Clouds, Upper Air, Space); Space has low gravity and thin air.
 - Pickups and hazards: coins and coin lines, fuel cans, boost rings, updrafts, balloons, birds, storm clouds.
-- 3 rolling missions, 33 trophies, daily reward with streak, best-flights page, records.
+- 3 rolling missions, 34 trophies, daily reward with streak, best-flights page, records.
 - Rebirth after reaching Space (600 m height): Stars buy permanent perks (coin boost, spare fuel, cheaper parts, head start).
 - Versioned autosave in `user://`, corrupt saves start fresh, reset option with confirmation. Generated SFX with a mute toggle.
 

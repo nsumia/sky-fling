@@ -6,9 +6,9 @@ var m
 func _initialize() -> void:
 	run.call_deferred()
 
-func tap(pos: Vector2, pressed: bool) -> void:
+func tap(pos: Vector2, pressed: bool, idx := 0) -> void:
 	var ev := InputEventScreenTouch.new()
-	ev.index = 0
+	ev.index = idx
 	ev.position = root.get_final_transform() * pos
 	ev.pressed = pressed
 	root.push_input(ev)
@@ -18,6 +18,21 @@ func drag(pos: Vector2) -> void:
 	ev.index = 0
 	ev.position = root.get_final_transform() * pos
 	root.push_input(ev)
+
+func launch_works(tag: String) -> void:
+	var a: Vector2 = m.wv.sling_screen()
+	tap(a + Vector2(-5, 5), true)
+	await frames(1)
+	drag(a + Vector2(-100, 60))
+	await frames(1)
+	var pulled: bool = m.wv.pull.length() > 50.0
+	tap(a + Vector2(-100, 60), false)
+	await frames(2)
+	check("drag-launch works " + tag, pulled and m.state == "flight")
+	m.flight.done = true
+	for i in 120:
+		m._process(1.0 / 60.0)
+	m.to_launch()
 
 func frames(n: int) -> void:
 	for i in n:
@@ -100,6 +115,78 @@ func run() -> void:
 	m.find_child("FlyBtn", true, false).pressed.emit()
 	await frames(2)
 	check("back on launch", m.state == "launch")
+	# ---- confirm dialogs must stack above the panel, never replace it
+	m.find_child("MenuBtn", true, false).pressed.emit()
+	await frames(2)
+	var panel_before = m.modal
+	m.find_child("ResetBtn", true, false).pressed.emit()
+	await frames(2)
+	check("reset confirm is a stacked dialog", m.dialog != null and m.modal == panel_before)
+	m.dialog.find_child("ConfirmNo", true, false).pressed.emit()
+	await frames(2)
+	check("reset NO keeps the menu panel", m.dialog == null and m.modal == panel_before and is_instance_valid(panel_before) and m.state == "panel")
+	m.go_back()
+	await frames(2)
+	check("launch alive after closing menu", m.state == "launch" and m.modal == null)
+	await launch_works("after reset-NO")
+	m.to_launch()
+	# rebirth flow
+	m.d["life"]["space"] = true
+	m.d["life"]["coins"] = 20000
+	m.find_child("RebirthBtn", true, false).pressed.emit()
+	await frames(2)
+	var rpanel = m.modal
+	m.find_child("DoRebirthBtn", true, false).pressed.emit()
+	await frames(2)
+	check("rebirth confirm stacked", m.dialog != null and m.modal == rpanel)
+	m.dialog.find_child("ConfirmNo", true, false).pressed.emit()
+	await frames(2)
+	check("rebirth NO keeps the panel", m.dialog == null and m.modal == rpanel and m.d["rebirths"] == 0 and m.state == "panel")
+	m.find_child("DoRebirthBtn", true, false).pressed.emit()
+	await frames(2)
+	m.dialog.find_child("ConfirmYes", true, false).pressed.emit()
+	await frames(3)
+	check("rebirth YES keeps the panel open", m.modal != null and m.state == "panel" and m.d["rebirths"] == 1 and m.d["stars"] > 0, "stars=%d" % m.d["stars"])
+	var perk = m.find_child("Perk_start", true, false)
+	check("perk shop still there after rebirth", perk != null and not perk.disabled)
+	perk.pressed.emit()
+	await frames(2)
+	check("start perk bought, parts start higher", m.d["perks"]["start"] == 1 and m.d["levels"]["wings"] >= 1 and m.d["levels"]["booster"] >= 1)
+	m.go_back()
+	await frames(2)
+	check("launch alive after rebirth panel", m.state == "launch" and m.modal == null)
+	await launch_works("after rebirth")
+	m.to_launch()
+	# ---- BOOST via a second finger while the first holds a tilt
+	m.d["levels"]["booster"] = 2
+	m.start_flight(1.0, 0.8)
+	await frames(2)
+	tap(Vector2(m.size.x * 0.8, 500), true, 0)
+	await frames(2)
+	var bb = m.find_child("BoostBtn", true, false)
+	var c: Vector2 = bb.get_global_rect().get_center()
+	var charges0: int = m.flight.charges
+	tap(c, true, 1)
+	await frames(2)
+	check("BOOST pressed by 2nd finger is down", m.boost_down)
+	check("tilt not hijacked by the boost finger", m.current_tilt() > 0.5 and m.tilts.size() == 1, str(m.tilts))
+	for i in 6:
+		m._process(1.0 / 60.0)
+	check("boost fired (charge used)", m.flight.charges == charges0 - 1 and m.flight.boosting)
+	tap(c, false, 1)
+	tap(Vector2(m.size.x * 0.8, 500), false, 0)
+	await frames(2)
+	check("fingers released", not m.boost_down and m.current_tilt() == 0.0)
+	tap(Vector2(m.size.x * 0.2, 500), true, 0)
+	tap(Vector2(m.size.x * 0.8, 500), true, 1)
+	await frames(1)
+	check("opposite fingers cancel", absf(m.current_tilt()) < 0.01)
+	tap(Vector2(m.size.x * 0.2, 500), false, 0)
+	tap(Vector2(m.size.x * 0.8, 500), false, 1)
+	m.flight.done = true
+	for i in 120:
+		m._process(1.0 / 60.0)
+	m.to_launch()
 	# every panel opens without errors
 	for nm in ["MissionsBtn", "TrophiesBtn", "StatsBtn", "RebirthBtn", "MenuBtn"]:
 		var b = m.find_child(nm, true, false)

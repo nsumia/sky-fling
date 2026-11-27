@@ -25,6 +25,7 @@ var ui: Control            # everything above the world view
 var hud_launch: Control
 var hud_flight: Control
 var modal: Control = null  # current full-screen panel / dialog
+var dialog: Control = null # confirm overlay stacked above modal (never replaces it)
 var state := "launch"      # launch | flight | result | hangar | panel
 var flight = null
 var accum := 0.0
@@ -334,12 +335,13 @@ func _build_flight_hud() -> void:
 	hud_flight.add_child(lbl["tiltR"])
 	lbl["tiltR"].set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	lbl["tiltR"].offset_left = -520
-	lbl["tiltR"].offset_top = -(safe_bottom + 200)
+	lbl["tiltR"].offset_top = -(safe_bottom + 220)
 	lbl["tiltR"].offset_right = -30
 	hud_flight.visible = false
 
 # ------------------------------------------------------------------ state changes
 func _close_modal() -> void:
+	_close_dialog()
 	if modal != null and is_instance_valid(modal):
 		modal.queue_free()
 	modal = null
@@ -425,7 +427,12 @@ func toggle_pause() -> void:
 	else:
 		_close_modal()
 
-func _panel_box(width_frac := 0.9) -> VBoxContainer:
+func _close_dialog() -> void:
+	if dialog != null and is_instance_valid(dialog):
+		dialog.queue_free()
+	dialog = null
+
+func _panel_box(width_frac := 0.9, replace := true) -> VBoxContainer:
 	# centered dialog; returns its content VBox
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -446,8 +453,12 @@ func _panel_box(width_frac := 0.9) -> VBoxContainer:
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 14)
 	pc.add_child(vb)
-	_close_modal()
-	modal = root
+	if replace:
+		_close_modal()
+		modal = root
+	else:
+		_close_dialog()
+		dialog = root
 	return vb
 
 func _show_pause() -> void:
@@ -502,16 +513,17 @@ func _show_daily() -> void:
 	vb.add_child(b)
 
 func confirm(text: String, yes: Callable) -> void:
-	var vb := _panel_box(0.85)
+	var vb := _panel_box(0.85, false)
 	vb.add_child(label(text, 34, COL_TXT, HORIZONTAL_ALIGNMENT_CENTER))
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 14)
 	vb.add_child(hb)
-	var n := btn("NO", func(): _close_modal(), 90)
+	var n := btn("NO", func(): _close_dialog(), 90)
+	n.name = "ConfirmNo"
 	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb.add_child(n)
 	var y := btn("YES", func():
-		_close_modal()
+		_close_dialog()
 		yes.call(), 90, true)
 	y.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	y.name = "ConfirmYes"
@@ -521,6 +533,7 @@ func confirm(text: String, yes: Callable) -> void:
 func open_panel(title: String, filler: Callable) -> void:
 	var prev_state := state
 	state = "panel"
+	hud_launch.visible = false
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	ui.add_child(root)
@@ -636,7 +649,7 @@ func _fill_rebirth(c: VBoxContainer) -> void:
 				wv.levels = d["levels"]
 				pending_celebrate = "Reborn! +%d Stars" % s
 				rebuild_panel()), 96, true)
-		rb.name = "RebirthBtn"
+		rb.name = "DoRebirthBtn"
 		v.add_child(rb)
 	else:
 		v.add_child(label("Reach Space (%d m height) in a flight to unlock Rebirth. Highest this run: %d m." % [int(Cfg.SPACE_ALT), int(d["life"]["height"])], 28))
@@ -679,7 +692,9 @@ func _fill_menu(c: VBoxContainer) -> void:
 	c.add_child(tut)
 	var rs := btn("RESET SAVE", func():
 		confirm("Erase ALL progress? This cannot be undone.", func():
+			var mute: bool = d["settings"]["mute"]
 			d = Save.defaults()
+			d["settings"]["mute"] = mute
 			Missions.fill(d)
 			save_now()
 			wv.levels = d["levels"]
@@ -886,6 +901,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 		var pos: Vector2 = ev.position
 		if state == "flight" and not paused:
 			if ev.pressed:
+				if _on_flight_button(pos):
+					return
 				tilts[ev.index] = -1.0 if pos.x < size.x * 0.5 else 1.0
 			else:
 				tilts.erase(ev.index)
@@ -901,6 +918,13 @@ func _unhandled_input(ev: InputEvent) -> void:
 			_set_pull(ev.position)
 		elif state == "flight" and tilts.has(ev.index):
 			tilts[ev.index] = -1.0 if ev.position.x < size.x * 0.5 else 1.0
+
+func _on_flight_button(pos: Vector2) -> bool:
+	for n in ["BoostBtn", "PauseBtn"]:
+		var b: Control = hud_flight.find_child(n, true, false)
+		if b != null and b.is_visible_in_tree() and b.get_global_rect().has_point(pos):
+			return true
+	return false
 
 func _set_pull(pos: Vector2) -> void:
 	var v: Vector2 = pos - wv.sling_screen()
@@ -940,6 +964,9 @@ func _release_pull() -> void:
 		wv.aim_arc = PackedVector2Array()
 
 func go_back() -> void:
+	if dialog != null:
+		_close_dialog()
+		return
 	if state == "flight":
 		toggle_pause()
 	elif state in ["hangar", "panel", "result"]:
@@ -960,10 +987,11 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ frame loop
 func current_tilt() -> float:
+	# several fingers: opposite sides cancel out, same side agrees
 	var t := key_tilt
 	for k in tilts:
-		t = tilts[k]
-	return t
+		t += tilts[k]
+	return clampf(t, -1.0, 1.0)
 
 func _process(delta: float) -> void:
 	delta = minf(delta, 0.1)

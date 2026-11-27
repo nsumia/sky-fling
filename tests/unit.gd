@@ -181,11 +181,17 @@ func test_missions_ach() -> void:
 	var ids := {}
 	for a in Ach.LIST:
 		ids[a[0]] = true
+	var txt := ""
+	for a in Ach.LIST:
+		txt += a[2] + "|"
+	check("height trophies use real thresholds", ("(%d m)" % int(Cfg.SPACE_ALT)) in txt and ("(%d m)" % int(Cfg.UPPER_ALT)) in txt and ("(%d m)" % int(Cfg.CLOUD_ALT)) in txt)
+	var readme := FileAccess.get_file_as_string("res://README.md")
+	check("README trophy count matches (%d)" % Ach.LIST.size(), readme.contains("%d trophies" % Ach.LIST.size()))
 	check("achievement ids unique", ids.size() == Ach.LIST.size())
 	var d3 := Save.defaults()
 	check("no achievements at start", Ach.check(d3).size() == 0)
 	Econ.apply_flight(d3, fs_with({"dist": 650.0, "height": 400.0, "speed": 70.0, "coin_count": 150, "coins_got": 150}))
-	for id in ["first", "d100", "d500", "h50", "h350", "spd60", "coins100"]:
+	for id in ["first", "d100", "d500", "h50", "hcloud", "spd60", "coins100"]:
 		check("achievement %s unlocked" % id, d3["ach"].has(id))
 	check("far achievements still locked", not d3["ach"].has("d1k") and not d3["ach"].has("space"))
 	d3["coins"] = 10000000
@@ -219,6 +225,9 @@ func test_rebirth_daily() -> void:
 	check("daily pays", a1 > 0 and d2["coins"] == a1 and d2["daily"]["streak"] == 1)
 	check("daily not twice same day", Econ.claim_daily(d2, 100) == 0 and not Econ.daily_available(d2, 100))
 	Econ.claim_daily(d2, 101)
+	d2["daily"]["last"] = 200
+	check("daily not claimable when the clock goes back", not Econ.daily_available(d2, 150) and Econ.claim_daily(d2, 150) == 0)
+	d2["daily"]["last"] = 101
 	check("streak grows on consecutive days", d2["daily"]["streak"] == 2)
 	Econ.claim_daily(d2, 105)
 	check("streak resets after a gap", d2["daily"]["streak"] == 1)

@@ -135,7 +135,7 @@ static func rebirth(d: Dictionary) -> int:
 
 # --- daily reward (day = integer day number of local date) ---
 static func daily_available(d: Dictionary, day: int) -> bool:
-	return d["daily"]["last"] != day
+	return day > d["daily"]["last"]
 
 static func daily_amount(d: Dictionary, streak: int) -> int:
 	var base := maxf(100.0, 0.6 * float(d["tot"]["earned"]) / maxf(1.0, float(d["tot"]["flights"])) * 3.0)

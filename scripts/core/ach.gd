@@ -1,6 +1,12 @@
 extends RefCounted
 ## Achievements (>= 20). Each: id -> [name, description, predicate key]. Evaluated on a state dict.
-const LIST := [
+const Cfg = preload("res://scripts/core/cfg.gd")
+
+## Built from Cfg so the height trophies always match the real zone thresholds.
+static var LIST: Array = _build()
+
+static func _build() -> Array:
+	return [
 	["first", "First Fling", "Complete a flight", "flights", 1],
 	["f10", "Frequent Flyer", "Complete 10 flights", "flights", 10],
 	["f100", "Sky Regular", "Complete 100 flights", "flights", 100],
@@ -11,9 +17,9 @@ const LIST := [
 	["d2k", "Long Hauler", "Fly 2,000 m", "rec_dist", 2000],
 	["d5k", "Cross-Country", "Fly 5,000 m", "rec_dist", 5000],
 	["h50", "Up and Away", "Reach 50 m height", "rec_height", 50],
-	["h350", "Cloud Breaker", "Reach the Clouds (350 m)", "rec_height", 350],
-	["h800", "Thin Air", "Reach the Upper Air (800 m)", "rec_height", 800],
-	["space", "Space Cadet", "Reach Space (1,500 m)", "rec_height", 1500],
+	["hcloud", "Cloud Breaker", "Reach the Clouds (%d m)" % int(Cfg.CLOUD_ALT), "rec_height", Cfg.CLOUD_ALT],
+	["hupper", "Thin Air", "Reach the Upper Air (%d m)" % int(Cfg.UPPER_ALT), "rec_height", Cfg.UPPER_ALT],
+	["space", "Space Cadet", "Reach Space (%d m)" % int(Cfg.SPACE_ALT), "rec_height", Cfg.SPACE_ALT],
 	["spd60", "Quick Hands", "Hit 60 m/s", "rec_speed", 60],
 	["spd120", "Sound Barrier-ish", "Hit 120 m/s", "rec_speed", 120],
 	["coins100", "Pocket Change", "Collect 100 coins", "coins_got", 100],
@@ -35,7 +41,7 @@ const LIST := [
 	["daily3", "Regular Visitor", "Claim 3 daily rewards", "daily", 3],
 	["stars25", "Stargazer", "Hold 25 Stars at once", "stars", 25],
 	["rich", "Big Spender", "Earn 100,000 coins in total", "earned", 100000],
-]
+	]
 
 static func value_of(d: Dictionary, key: String, extra: Dictionary) -> float:
 	match key:

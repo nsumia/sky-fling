@@ -20,6 +20,7 @@ mutations=(
   "boost button pushed off-screen (layout)|scripts/game/main.gd|bb.offset_right = -30|bb.offset_right = 200|layout|SKYFLING_SAVE=user://neg_layout.json"
   "zero mass gives NaN physics|scripts/core/flight.gd|var mass := p_mass|var mass := 0.0|nan_stress|NAN_N=40"
   "result screen never reached (smoke)|scripts/game/main.gd|state = \"result\"|state = \"flying\"|smoke|SKYFLING_SAVE=user://neg_smoke.json"
+  "confirm dialog replaces the panel (reintroduced bug)|scripts/game/main.gd|_panel_box(0.85, false)|_panel_box(0.85, true)|smoke|SKYFLING_SAVE=user://neg_smoke2.json"
 )
 
 for spec in "${mutations[@]}"; do

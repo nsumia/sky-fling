@@ -53,10 +53,12 @@ func run() -> void:
 	m.wv.pull = Vector2.ZERO
 	m.start_flight(1.0, 0.75, 0.0)
 	fly_for(2.5)
-	m.boost_down = true
-	fly_for(0.6)
-	m.boost_down = false
 	await shot("flight_meadow")
+	m.boost_down = true
+	fly_for(0.5)
+	await shot("flight_boost")
+	m.boost_down = false
+	fly_for(2.5)
 	m.joy.vec = Vector2(1.0, 0.0)   # full stick right: a banking turn
 	fly_for(1.8)
 	await shot("flight_banking")
@@ -103,7 +105,22 @@ func run() -> void:
 	m._close_dialog()
 	m.d["levels"] = {"wings": 5, "tail": 4, "body": 3, "engine": 5, "fuel": 3, "booster": 3, "sling": 5, "gear": 3}
 	m.wv.levels = m.d["levels"]
+	m.clear_celebrate()
 	m.open_hangar()
 	fly_for(1.2)
 	await shot("hangar_jet")
+	m.clear_celebrate()
+	m.d["levels"] = {"wings": 8, "tail": 6, "body": 6, "engine": 8, "fuel": 6, "booster": 6, "sling": 8, "gear": 5}
+	m.wv.levels = m.d["levels"]
+	m.to_launch()
+	fly_for(1.0)
+	await shot("launch_spaceplane")
+	m.open_hangar()
+	fly_for(1.2)
+	await shot("hangar_spaceplane")
+	m.to_launch()
+	m.start_flight(1.0, 0.75, 0.0)
+	teleport(3300.0, 900.0, 80.0)
+	fly_for(2.5)
+	await shot("flight_spaceplane")
 	quit()

@@ -2,7 +2,7 @@ extends RefCounted
 ## Credits text. CC-BY 3.0 attributions are mandatory (the asset test checks every CC-BY row of ASSETS.md appears here).
 const CC_BY := [
 	["Airplane (biplane)", "Poly by Google", "https://poly.pizza/m/8VysVKMXN2J"],
-	["Small Airplane", "Vojtech Balak", "https://poly.pizza/m/7cvx6ex-xfL"],
+	["Small Airplane", "Vojtěch Balák", "https://poly.pizza/m/7cvx6ex-xfL"],
 	["Jet", "jeremy", "https://poly.pizza/m/6fyLMORhgGK"],
 ]
 const CC0 := "Skies and terrain textures: Poly Haven (polyhaven.com), CC0. Models: Quaternius and Kenney (via Poly Pizza), CC0."

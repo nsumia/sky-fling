@@ -34,15 +34,17 @@ void fragment() {
 	w.a *= 1.0 - smoothstep(0.30, 0.55, slope);   // snow slides off steep slopes
 	w /= max(w.r + w.g + w.b + w.a, 0.001);
 	vec3 gc = two(grass_d, p);
+	float gl = dot(gc, vec3(0.3, 0.59, 0.11));
+	gc = mix(vec3(gl), gc, 0.35) * vec3(0.52, 1.0, 0.34) * 1.25;   // lush green instead of the dry khaki capture
 	vec3 sc = two(sand_d, p * 0.8);
-	vec3 rc = two(rock_d, p * 0.7);
+	vec3 rc = two(rock_d, p * 0.7) * 0.6;
 	vec3 nc = two(snow_d, p * 0.9);
 	vec3 col = gc * w.r + sc * w.g + rc * w.b + nc * w.a;
 	// macro variation so large areas do not look like one repeated texture
 	float m = texture(grass_d, wpos.xz * 0.004).g;
 	col *= 0.82 + 0.4 * m;
 	float far = smoothstep(260.0, 900.0, vdist);
-	vec3 avg = vec3(0.34, 0.40, 0.22) * w.r + vec3(0.62, 0.52, 0.36) * w.g + vec3(0.36, 0.33, 0.30) * w.b + vec3(0.9, 0.93, 0.97) * w.a;
+	vec3 avg = vec3(0.20, 0.42, 0.14) * w.r + vec3(0.62, 0.52, 0.36) * w.g + vec3(0.24, 0.22, 0.20) * w.b + vec3(0.9, 0.93, 0.97) * w.a;
 	col = mix(col, avg * (0.82 + 0.4 * m), far * 0.7);
 	col = mix(col, col * tint, tint_amt);
 	// normal detail (grass + rock), tangent frame = world x / z

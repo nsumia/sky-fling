@@ -5,7 +5,7 @@ Format: the `Files` column holds repo paths (a path ending in `/` covers every f
 | Name | Author | URL | Licence | Files | Modifications |
 |---|---|---|---|---|---|
 | Airplane (biplane) | Poly by Google | https://poly.pizza/m/8VysVKMXN2J | CC-BY 3.0 | `assets/models/biplane.glb`, `assets/models/biplane_PUSHILIN_PLANE.png` | rotated, scaled, materials re-tuned (PBR), add-on parts built in code |
-| Small Airplane | Vojtech Balak | https://poly.pizza/m/7cvx6ex-xfL | CC-BY 3.0 | `assets/models/propplane.glb` | rotated, scaled, PBR materials, propeller spun in code |
+| Small Airplane | Vojtěch Balák | https://poly.pizza/m/7cvx6ex-xfL | CC-BY 3.0 | `assets/models/propplane.glb` | rotated, scaled, PBR materials, propeller spun in code |
 | Jet | jeremy | https://poly.pizza/m/6fyLMORhgGK | CC-BY 3.0 | `assets/models/jet.glb` | rotated, scaled, PBR materials |
 | Spaceship (rocket plane) | Quaternius | https://poly.pizza/m/uCeLfsdmNP | CC0 1.0 | `assets/models/rocketplane.glb`, `assets/models/rocketplane_Atlas.png` | rotated, scaled |
 | Spaceship (space plane) | Quaternius | https://poly.pizza/m/PQzePrvBCD | CC0 1.0 | `assets/models/spaceplane.glb` | rotated, scaled |
@@ -28,10 +28,11 @@ Format: the `Files` column holds repo paths (a path ending in `/` covers every f
 | Aerial Sand 1k | Rob Tuytel | https://polyhaven.com/a/aerial_sand | CC0 1.0 | `assets/tex/aerial_sand/` | none |
 | Snow 02 1k | Rob Tuytel | https://polyhaven.com/a/snow_02 | CC0 1.0 | `assets/tex/snow_02/` | none |
 | Rocky Terrain 02 1k | Amal Kumar | https://polyhaven.com/a/rocky_terrain_02 | CC0 1.0 | `assets/tex/rocky_terrain_02/` | none |
+| Plywood 1k (diff, nor_gl) | Rob Tuytel | https://polyhaven.com/a/plywood | CC0 1.0 | `assets/tex/plywood/` | triplanar balsa wood on the glider |
 
 Poly Haven licence page (https://polyhaven.com/license) states CC0 for HDRIs and textures. Poly Pizza model pages show "CC-BY 3.0" or "CC0 1.0" per model (checked per page).
 Not used: Poly Pizza "Bird"/"Pigeon"/"Birb" (cartoon heads, not flying birds): birds are our own meshes. Water normal, cloud sprites and stars are generated in code (ours).
 
 ## Credits text (CC-BY, shown in Menu > Credits and in the README; kept in scripts/core/credits.gd)
-"Airplane by Poly by Google, Small Airplane by Vojtech Balak, Jet by jeremy, via Poly Pizza (poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts."
+"Airplane by Poly by Google, Small Airplane by Vojtěch Balák, Jet by jeremy, via Poly Pizza (poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts."
 Courtesy (CC0): skies and textures from Poly Haven; models by Quaternius and Kenney.

@@ -196,7 +196,7 @@ func _build_scene() -> void:
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	env.fog_light_color = HOR_DAY
 	env.fog_density = 0.0016
-	env.fog_aerial_perspective = 0.55
+	env.fog_aerial_perspective = 0.2
 	env.fog_sky_affect = 0.0
 	we.environment = env
 	add_child(we)
@@ -274,8 +274,27 @@ func _build_scene() -> void:
 	speed_lines.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	cam.add_child(speed_lines)
 	# particles, clouds, aim arc (one draw call each)
-	pmm = _make_mm(_ball_mesh(6, 3), 400, true)
+	var pq := QuadMesh.new()
+	pq.size = Vector2(2, 2)
+	pmm = _make_mm(pq, 400, true)
 	pmi = _mm_node(pmm, true, "Particles")
+	var pmat := pmi.material_override as StandardMaterial3D
+	pmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	pmat.billboard_keep_scale = true
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 64
+	gt.height = 64
+	var gr := Gradient.new()
+	gr.set_color(0, Color(1, 1, 1, 1))
+	gr.set_color(1, Color(1, 1, 1, 0))
+	gr.add_point(0.45, Color(1, 1, 1, 0.55))
+	gt.gradient = gr
+	pmat.albedo_texture = gt
+	pmat.no_depth_test = false
+	pmat.disable_receive_shadows = true
 	add_child(pmi)
 	var qm := QuadMesh.new()
 	qm.size = Vector2(1, 1)
@@ -536,8 +555,9 @@ func sync(wv, dt: float) -> void:
 		for sg in [-1.0, 1.0]:
 			var wp: Vector3 = plane.global_transform * Vector3(tp.x, tp.y, tp.z * sg)
 			wv.emit(wp.x, wp.y, 0.0, 0.0, 0.6, Color(1, 1, 1, clampf((sp - 33.0) * 0.03, 0.0, 0.5)), 0.09, 0.0, wp.z, 0.0)
-	speed_lines.visible = boost > 0.0 and mode == "flight"
-	(speed_lines.material_override as ShaderMaterial).set_shader_parameter("amt", boost * 0.55)
+	var boost_on: bool = mode == "flight" and f != null and f.boosting
+	speed_lines.visible = boost_on
+	(speed_lines.material_override as ShaderMaterial).set_shader_parameter("amt", clampf(f.boost_t * 2.0, 0.0, 1.0) * 0.55 if boost_on else 0.0)
 	if mode != "hangar":
 		_sync_world(wv, tgt, f, mode, dt)
 	_update_sky(wv, mode, tgt.y)
@@ -626,9 +646,6 @@ func _update_hangar(dt: float, wv) -> void:
 	if show_t > 0.0:
 		show_t -= dt
 		s *= 1.0 + 0.12 * sin(show_t * 9.0)
-		if int(show_t * 12.0) != int((show_t + dt) * 12.0):
-			var a := randf() * TAU
-			wv.burst(cos(a) * 2.5, 0.2 + sin(a) * 1.5, 5, [Color("ffe066"), Color("39e6ff"), Color("ff5dc8")][randi() % 3], 3.0, 0.9, -1.0)
 	plane.scale = Vector3.ONE * s
 	var fy := 0.2 + plane_ground - 0.1
 	stage_floor.position = Vector3(0, fy - 0.02, 0)
@@ -920,6 +937,8 @@ func _update_clouds() -> void:
 
 # ------------------------------------------------------------------ particles
 func _update_particles(wv) -> void:
+	if last_mode == "hangar":
+		wv.particles.clear()
 	var n := 0
 	var cap := pmm.instance_count
 	for p in wv.particles:
@@ -928,7 +947,7 @@ func _update_particles(wv) -> void:
 		var life: float = p["l"] / p["m"]
 		var c: Color = p["c"]
 		c.a *= clampf(life * 1.6, 0.0, 1.0)
-		var sz: float = maxf(0.05, p["s"] * (0.45 + 0.55 * life))
+		var sz: float = maxf(0.05, p["s"] * (1.5 - 0.9 * life))   # smoke puffs grow while they fade
 		pmm.set_instance_transform(n, Transform3D(Basis.from_scale(Vector3.ONE * sz), Vector3(p["x"], p["y"], p.get("z", 0.0))))
 		pmm.set_instance_color(n, c)
 		n += 1
@@ -963,7 +982,7 @@ func _update_sky(wv, mode: String, py: float) -> void:
 	var fogc := HOR_DAY.lerp(HOR_SET, sunset_mix).lerp(Color("203050"), a1 * 0.9).lerp(Color("04030c"), a2)
 	env.fog_enabled = true
 	env.fog_light_color = fogc
-	env.fog_density = (1.35 / (float(Terrain3D.LEVELS[2]["size"]) * 1.2)) * (1.0 - a2) * (1.0 - 0.6 * a1)
+	env.fog_density = (0.6 / (float(Terrain3D.LEVELS[2]["size"]) * 1.2)) * (1.0 - a2) * (1.0 - 0.6 * a1)
 	env.ambient_light_energy = lerpf(0.95, 0.35, a1) * (1.0 - 0.3 * a2)
 	var sd := SUN_DAY.lerp(SUN_SET, sunset_mix).normalized()
 	sun.look_at_from_position(Vector3.ZERO, -sd)

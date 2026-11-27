@@ -11,12 +11,62 @@ var mvs := PackedVector3Array()
 var mns := PackedVector3Array()
 var mcs := PackedColorArray()
 var glow := false
+var solid_override: Material = null   # e.g. paper / balsa PBR material for the solid layer
 var metal := false      # third layer: PBR metal (engine nozzles, props, struts ...)
 var xf := Transform3D.IDENTITY
 
 static var _solid: StandardMaterial3D
 static var _glow: StandardMaterial3D
 static var _metal: StandardMaterial3D
+static var _paper: StandardMaterial3D
+static var _wood: StandardMaterial3D
+
+## paper: generated grain (ours), normal map from the same noise, two-sided, matte
+static func paper_mat() -> StandardMaterial3D:
+	if _paper == null:
+		var n := FastNoiseLite.new()
+		n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		n.frequency = 0.09
+		n.fractal_octaves = 3
+		var img := n.get_seamless_image(256, 256)
+		var bump := img.duplicate()
+		bump.bump_map_to_normal_map(3.0)
+		img.adjust_bcs(0.0, 0.0, 1.0)
+		# pale grain between 0.86 and 1.0
+		for y in 256:
+			for x in 256:
+				var v := 0.86 + 0.14 * img.get_pixel(x, y).r
+				img.set_pixel(x, y, Color(v, v, v))
+		img.generate_mipmaps()
+		bump.generate_mipmaps()
+		_paper = StandardMaterial3D.new()
+		_paper.vertex_color_use_as_albedo = true
+		_paper.albedo_texture = ImageTexture.create_from_image(img)
+		_paper.normal_enabled = true
+		_paper.normal_texture = ImageTexture.create_from_image(bump)
+		_paper.normal_scale = 0.6
+		_paper.uv1_triplanar = true
+		_paper.uv1_scale = Vector3(0.9, 0.9, 0.9)
+		_paper.roughness = 0.88
+		_paper.metallic = 0.0
+		_paper.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_paper.backlight_enabled = true
+		_paper.backlight = Color(0.35, 0.33, 0.3)
+	return _paper
+
+## balsa / plywood: Poly Haven plywood (CC0), triplanar so the code-built geometry needs no UVs
+static func wood_mat() -> StandardMaterial3D:
+	if _wood == null:
+		_wood = StandardMaterial3D.new()
+		_wood.vertex_color_use_as_albedo = true
+		_wood.albedo_texture = load("res://assets/tex/plywood/plywood_diff_1k.jpg")
+		_wood.normal_enabled = true
+		_wood.normal_texture = load("res://assets/tex/plywood/plywood_nor_gl_1k.jpg")
+		_wood.uv1_triplanar = true
+		_wood.uv1_scale = Vector3(0.7, 0.7, 0.7)
+		_wood.roughness = 0.6
+		_wood.metallic = 0.0
+	return _wood
 
 static func solid_mat() -> StandardMaterial3D:
 	if _solid == null:
@@ -50,6 +100,8 @@ static func release_statics() -> void:
 	_solid = null
 	_glow = null
 	_metal = null
+	_paper = null
+	_wood = null
 
 func is_empty() -> bool:
 	return vs.is_empty() and gvs.is_empty() and mvs.is_empty()
@@ -197,7 +249,7 @@ func to_mesh() -> ArrayMesh:
 		arr[Mesh.ARRAY_NORMAL] = ns
 		arr[Mesh.ARRAY_COLOR] = cs
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-		m.surface_set_material(m.get_surface_count() - 1, solid_mat())
+		m.surface_set_material(m.get_surface_count() - 1, solid_override if solid_override != null else solid_mat())
 	if not mvs.is_empty():
 		var arr3: Array = []
 		arr3.resize(Mesh.ARRAY_MAX)

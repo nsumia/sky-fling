@@ -52,7 +52,7 @@ static func weights(x: float, z: float, h: float) -> Color:
 	var zi2 := Terrain.zone_idx(x, z)
 	c[1] += smoothstep(1.8, -0.3, h) * 1.2                     # beaches and sea bed
 	if zi2 >= 4:
-		c[3] += smoothstep(9.0, 17.0, h) * 1.6                  # snow caps
+		c[3] += smoothstep(13.0, 24.0, h) * 1.6                  # snow caps
 		c[0] *= 1.0 - smoothstep(4.0, 9.0, h)
 	var s: float = c[0] + c[1] + c[2] + c[3]
 	return Color(c[0] / s, c[1] / s, c[2] / s, c[3] / s)

@@ -9,7 +9,7 @@ const Models = preload("res://scripts/game/models.gd")
 const PARTS := ["body", "wings", "tail", "engine", "fuel", "booster", "gear"]
 const BODY_COL := [Color("f8f5ec"), Color("e9be7a"), Color("e63946"), Color("2f8fe8"), Color("d4dce6"), Color("ff6a2e"), Color("eef2ff")]
 const WING_COL := [Color("e3dece"), Color("f5dfa3"), Color("e85d22"), Color("e4e7ec"), Color("62798a"), Color("c9692b"), Color("d9dde3")]
-const ACC_COL := [Color("5aa9e6"), Color("d94f4f"), Color("1d3557"), Color("c8372d"), Color("ff9f1c"), Color("2bd4ff"), Color("39e6ff")]
+const ACC_COL := [Color("5aa9e6"), Color("d94f4f"), Color("1d3557"), Color("a8322a"), Color("3a8fa3"), Color("4f8ea8"), Color("6fa3b8")]
 const GLASS := Color("a8e0ff")
 const METAL := Color("aab4c0")
 const DARK := Color("2a2d36")
@@ -37,7 +37,7 @@ static func params(lv: Dictionary) -> Dictionary:
 		p["hl"] = float(info["hl"]) * sc
 		p["L"] = p["hl"] * 2.0
 		p["R"] = float(info["R"]) * sc
-		p["ext"] = 0.03 * float(p["wings"]) * float(info["s0"]) * sc
+		p["ext"] = 0.016 * float(p["wings"]) * float(info["s0"]) * sc
 		p["s"] = float(info["s0"]) * sc + p["ext"]
 	return p
 
@@ -48,6 +48,10 @@ static func build(lv: Dictionary) -> Node3D:
 	root.set_meta("tier", P["tier"])
 	for part in PARTS:
 		var b := MB.new()
+		if P["tier"] == 0:
+			b.solid_override = MB.paper_mat()
+		elif P["tier"] == 1:
+			b.solid_override = MB.wood_mat()
 		var base: ArrayMesh = null
 		var model: bool = P["model"]
 		match part:
@@ -164,12 +168,12 @@ static func _model_wings(b: MB, P: Dictionary) -> void:
 			var C := Vector3(B.x - chord * 0.8, y, sg * (s0 + ext))
 			var D := Vector3(x0 + 0.02, y, sg * (s0 - 0.04))
 			b.slab([A, B, C, D], Vector3(0, th, 0), wc.darkened(0.03), wc.lightened(0.05))
-			if w >= 2:   # tip trim
-				b.slab([A.lerp(B, 0.82), B, C, D.lerp(C, 0.82)], Vector3(0, th * 1.3, 0), ac)
-			if w >= 4:   # stripe
-				b.slab([A.lerp(B, 0.42), A.lerp(B, 0.52), D.lerp(C, 0.52), D.lerp(C, 0.42)], Vector3(0, th * 1.3, 0), ac)
+			if w >= 2:   # thin tip trim
+				b.slab([A.lerp(B, 0.93), B, C, D.lerp(C, 0.93)], Vector3(0, th * 1.15, 0), ac)
+			if w >= 4:   # thin stripe
+				b.slab([A.lerp(B, 0.55), A.lerp(B, 0.6), D.lerp(C, 0.6), D.lerp(C, 0.55)], Vector3(0, th * 1.15, 0), ac)
 			if w >= 5:   # winglet
-				var h := 0.18 + 0.035 * w
+				var h := 0.10 + 0.02 * w
 				b.slab([B, C, C + Vector3(-0.12, h, 0), B + Vector3(-0.04, h, 0)], Vector3(0, 0, 0.04), wc)
 				b.slab([B + Vector3(-0.02, h * 0.55, 0), B + Vector3(-0.04, h, 0), C + Vector3(-0.12, h, 0), C + Vector3(-0.08, h * 0.55, 0)], Vector3(0, 0, 0.05), ac)
 			if w >= 8:   # glowing leading edge
@@ -194,10 +198,10 @@ static func _model_tail(b: MB, P: Dictionary) -> void:
 	if tl <= 0:
 		return
 	var th := 0.035 + 0.004 * tl
-	var ex := 0.09 * float(tl)
+	var ex := 0.045 * float(tl)
 	# horizontal stabiliser extensions (outboard of the existing tip), growing with the level
 	for sg in [-1.0, 1.0]:
-		var ch := 0.5 + 0.03 * tl
+		var ch := 0.4 + 0.02 * tl
 		var A := Vector3(xt + ch * 0.7, tail_y, sg * (sz - 0.03))
 		var B := Vector3(xt + ch * 0.45, tail_y, sg * (sz + ex))
 		var C := Vector3(xt - 0.1, tail_y, sg * (sz + ex))
@@ -209,8 +213,8 @@ static func _model_tail(b: MB, P: Dictionary) -> void:
 			var zf: float = sg * (sz + ex)
 			b.slab([Vector3(xt + ch * 0.45, tail_y, zf), Vector3(xt + 0.1, tail_y + 0.34, zf), Vector3(xt - 0.1, tail_y + 0.34, zf), Vector3(xt - 0.1, tail_y, zf)], Vector3(0, 0, th), wc)
 	# taller fin cap, then a ventral fin
-	var fh := 0.1 + 0.05 * tl
-	b.slab([Vector3(xt + 0.45, fin_top - 0.12, 0), Vector3(xt + 0.12, fin_top + fh, 0), Vector3(xt - 0.1, fin_top + fh, 0), Vector3(xt - 0.1, fin_top - 0.12, 0)], Vector3(0, 0, th * 1.4), ac)
+	var fh := 0.04 + 0.025 * tl
+	b.slab([Vector3(xt + 0.35, fin_top - 0.08, 0), Vector3(xt + 0.1, fin_top + fh, 0), Vector3(xt - 0.08, fin_top + fh, 0), Vector3(xt - 0.08, fin_top - 0.08, 0)], Vector3(0, 0, th * 1.2), ac.darkened(0.15))
 	if tl >= 3:
 		b.slab([Vector3(xt + 0.5, tail_y - 0.05, 0), Vector3(xt + 0.1, tail_y - 0.3 - 0.04 * tl, 0), Vector3(xt - 0.1, tail_y - 0.3 - 0.04 * tl, 0), Vector3(xt - 0.1, tail_y - 0.05, 0)], Vector3(0, 0, th), wc)
 	if tl >= 6:
@@ -566,7 +570,7 @@ static func _fuel(b: MB, P: Dictionary) -> void:
 	var R: float = maxf(P["R"], 0.18)
 	var r := 0.09 + 0.022 * fu
 	var ln := 0.45 + 0.12 * fu
-	var col := Color("ffb703")
+	var col := Color("ffb703") if not P["model"] else Color("aeb8c2")
 	var ac: Color = P["ac"]
 	var zs := [0.0] if fu < 3 else [-r * 1.15 - 0.08, r * 1.15 + 0.08]
 	for z in zs:

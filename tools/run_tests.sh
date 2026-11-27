@@ -43,6 +43,7 @@ run chunks chunks 7 "CHUNKS OK"
 run flights flights 6 "FLIGHTS OK"
 run assets assets 4 "ASSETS OK"
 run perf perf 12 "PERF OK"
+run visual visual 6 "VISUAL OK"
 run smoke smoke 3 "UI SMOKE OK"
 run layout layout 4 "LAYOUT OK"
 

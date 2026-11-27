@@ -14,3 +14,8 @@
 - [x] 10 effects (wing-tip trails, speed lines, shake, splash/dust, coin sparkle), screenshots reviewed
 - [x] 11 one clean tools/run_tests.sh (ALL TESTS PASSED, rc 0)
 - [x] 12 APK 49778464 B sha256 57aa806e1b0e804798a11477d2c9e7e46aa1a1a2fe629d938b248160185a1570
+
+## v3 review round 1 fixes + owner msg 1207 (no 60 s limit)
+- [x] 60 s cap removed (Flight.safety_cap only in tests / bot sim), COST_MUL 1.8 + v_max 21 rebalance, tests: long flight, 10k flights end, negative
+- [x] gl_compatibility shipped; speed lines only while boosting (+visual test); hangar banner/particles; jet add-ons subtle; green meadow; fog tuned
+- [x] paper (generated grain) + balsa (Poly Haven plywood) PBR, soft smoke trail, pitch absolute test, Vojtěch Balák, README notes, space-plane screenshots

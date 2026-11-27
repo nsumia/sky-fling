@@ -384,6 +384,7 @@ func fmt(n) -> String:
 	return out
 
 func to_launch() -> void:
+	clear_celebrate()
 	_close_modal()
 	state = "launch"
 	flight = null
@@ -404,6 +405,7 @@ func to_launch() -> void:
 	refresh_launch()
 
 func open_hangar() -> void:
+	clear_celebrate()
 	state = "hangar"
 	wv.mode = "hangar"
 	wv.pull = Vector2.ZERO
@@ -412,6 +414,7 @@ func open_hangar() -> void:
 	_build_hangar()
 
 func start_flight(pull_frac: float, angle: float, yaw := 0.0) -> void:
+	clear_celebrate()
 	_close_modal()
 	var st: Dictionary = Econ.stats_for(d)
 	flight = Flight.new(st, d["seed_ctr"], pull_frac, angle, yaw)
@@ -844,6 +847,12 @@ func _buy_part(cat: String) -> void:
 		if an.size() > 0:
 			save_now()
 
+func clear_celebrate() -> void:
+	for c in ui.get_children():
+		if c.name == "Celebrate":
+			c.queue_free()
+			ui.remove_child(c)
+
 func celebrate(text: String) -> void:
 	play("evolve")
 	if state == "hangar":
@@ -1092,11 +1101,11 @@ func _trail() -> void:
 		var ty: float = f.y - fw.y * 1.8
 		var tz: float = f.z - fw.z * 1.8
 		if f.boosting:
-			wv.emit(tx, ty, -f.vx * 0.1, -f.vy * 0.1, 0.5, Color(0.6, 0.85, 1.0, 0.9), 0.7, 0.0, tz, -f.vz * 0.1)
+			wv.emit(tx, ty, -f.vx * 0.05, -f.vy * 0.05, 0.7, Color(0.75, 0.9, 1.0, 0.42), 0.34, 0.0, tz, -f.vz * 0.05)
 		elif f.thrusting:
-			wv.emit(tx, ty, -f.vx * 0.05, 1.0, 0.45, Color(1.0, 0.7, 0.2, 0.8), 0.45, 0.0, tz, -f.vz * 0.05)
+			wv.emit(tx, ty, -f.vx * 0.03, 0.6, 0.9, Color(0.85, 0.85, 0.88, 0.3), 0.2, 0.0, tz, -f.vz * 0.03)
 		else:
-			wv.emit(tx, ty, 0.0, 0.0, 0.8, Color(1, 1, 1, 0.35), 0.35, 0.0, tz, 0.0)
+			wv.emit(tx, ty, 0.0, 0.0, 0.9, Color(1, 1, 1, 0.14), 0.1, 0.0, tz, 0.0)
 
 func _flight_events() -> void:
 	var f = flight

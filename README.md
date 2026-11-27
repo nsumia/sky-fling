@@ -56,5 +56,11 @@ MIT
 ## v3 look and credits
 Realistic presentation: glTF aircraft with code-built upgrade add-ons, PBR terrain (Poly Haven textures) in a 2D tile grid, HDRI sky fading into space, water shader, MultiMesh trees and rocks, billboard clouds, AgX tonemapping, fog, studio hangar.
 All third-party assets (CC0 or CC-BY 3.0) are listed in ASSETS.md and shown in Menu > Credits. CC-BY attributions:
-Airplane (biplane) by Poly by Google, Small Airplane by Vojtech Balak, Jet by jeremy, via Poly Pizza (https://poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts.
+Airplane (biplane) by Poly by Google, Small Airplane by Vojtěch Balák, Jet by jeremy, via Poly Pizza (https://poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts.
 Skies and terrain textures: Poly Haven (CC0). Models: Quaternius and Kenney (CC0).
+
+### Notes
+- Renderer: the project ships and is tested with `gl_compatibility` (OpenGL), not the Mobile (Vulkan) renderer.
+- There is no flight-time limit. A flight ends on a landing or crash, or when the plane has come to rest (fuel and boosts are finite, gravity never vanishes). Tests and the bot sim use a hidden safety cap only.
+- Trees, rocks and cacti are scenery only: they have no collision, the plane flies through them.
+- Distance is the straight horizontal distance from the launch point, so flying sideways counts as distance too.

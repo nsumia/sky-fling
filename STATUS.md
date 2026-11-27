@@ -12,5 +12,5 @@
 - [x] 8 hangar studio
 - [x] 9 asset + performance tests + 2 negatives (asset missing from ASSETS.md, draw-call budget)
 - [x] 10 effects (wing-tip trails, speed lines, shake, splash/dust, coin sparkle), screenshots reviewed
-- [ ] 11 one clean tools/run_tests.sh
-- [ ] 12 APK size + sha256
+- [x] 11 one clean tools/run_tests.sh (ALL TESTS PASSED, rc 0)
+- [x] 12 APK 49778464 B sha256 57aa806e1b0e804798a11477d2c9e7e46aa1a1a2fe629d938b248160185a1570

@@ -17,16 +17,13 @@ mutations=(
   "corrupt-save guard removed|scripts/core/save_store.gd|if typeof(raw) != TYPE_DICTIONARY:|if false:|unit|"
   "buy allowed without coins|scripts/core/econ.gd|return c > 0 and d[\"coins\"] >= c|return c > 0|unit|"
   "costs 5x too cheap (balance)|scripts/core/cfg.gd|var c: float = p[\"base\"] * pow(p[\"growth\"], level - 1)|var c: float = 0.2 * p[\"base\"] * pow(p[\"growth\"], level - 1)|balance|"
-  "tiny buttons (layout)|scripts/game/main.gd|b.custom_minimum_size = Vector2(min_w, min_h)|b.custom_minimum_size = Vector2(min_w, 20)|layout|SKYFLING_SAVE=user://neg_layout.json"
+  "boost button pushed off-screen (layout)|scripts/game/main.gd|bb.offset_right = -30|bb.offset_right = 200|layout|SKYFLING_SAVE=user://neg_layout.json"
   "zero mass gives NaN physics|scripts/core/flight.gd|var mass := p_mass|var mass := 0.0|nan_stress|NAN_N=40"
-  "result screen never shown (smoke)|scripts/game/main.gd|	play(\"bounce\")
-	show_result()|	play(\"bounce\")|smoke|SKYFLING_SAVE=user://neg_smoke.json"
+  "result screen never reached (smoke)|scripts/game/main.gd|state = \"result\"|state = \"flying\"|smoke|SKYFLING_SAVE=user://neg_smoke.json"
 )
 
 for spec in "${mutations[@]}"; do
   IFS='|' read -r name file old new test extra <<<"$spec"
-  # the smoke mutation contains a newline, re-join the split pieces
-  if [ "$test" = "" ]; then :; fi
   work="$tmp/copy"
   rm -rf "$work"
   mkdir -p "$work"

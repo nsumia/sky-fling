@@ -24,7 +24,8 @@ func frames(n: int) -> void:
 		await process_frame
 
 func run() -> void:
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://smoke_save.json"))
+	var sp := OS.get_environment("SKYFLING_SAVE") if OS.get_environment("SKYFLING_SAVE") != "" else "user://smoke_save.json"
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(sp))
 	m = load("res://scenes/main.tscn").instantiate()
 	root.add_child(m)
 	await frames(3)
@@ -73,7 +74,7 @@ func run() -> void:
 	check("flight reached the result screen", m.state == "result" and m.last_fs.has("dist"), "state=" + m.state)
 	check("result shows distance > 0", m.last_fs["dist"] > 5.0, str(m.last_fs.get("dist")))
 	check("coins paid", m.d["tot"]["flights"] == 1 and m.d["coins"] >= m.last_result["reward"]["total"])
-	check("save file written", FileAccess.file_exists("user://smoke_save.json"))
+	check("save file written", FileAccess.file_exists(m.save_path))
 	await frames(1)
 	var hb = m.find_child("ResultHangar", true, false)
 	check("hangar button on result", hb != null)
@@ -128,5 +129,5 @@ func run() -> void:
 	m.find_child("ConfirmYes", true, false).pressed.emit()
 	await frames(2)
 	check("reset save wipes progress", m.d["coins"] == 0 and m.d["levels"]["wings"] == 0)
-	check("reset save persisted", FileAccess.file_exists("user://smoke_save.json"))
+	check("reset save persisted", FileAccess.file_exists(m.save_path))
 	finish("UI SMOKE")

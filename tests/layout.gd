@@ -74,6 +74,9 @@ func run() -> void:
 		await frames(2)
 		audit("confirm", win)
 		m._close_modal()
+		m.d["levels"]["booster"] = 2
+		m.d["levels"]["engine"] = 2
+		m.d["levels"]["fuel"] = 2
 		m.start_flight(1.0, 0.8)
 		for i in 30:
 			m._process(1.0 / 60.0)

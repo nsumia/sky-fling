@@ -829,7 +829,7 @@ func _sync_entities(f) -> void:
 				ey += sin(t * 2.0 + e["ph"]) * 6.0
 				eu += cos(t * 1.3 + e["ph"]) * 5.0
 				ew += sin(t * 0.9 + e["ph"]) * 8.0
-			if eu + 16.0 < lp.x - 45.0 or eu > lp.x + 330.0:
+			if eu + 16.0 < lp.x - 45.0 or eu > lp.x + 260.0:
 				continue
 			seen[id] = true
 			var n: Node3D

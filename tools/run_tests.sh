@@ -54,7 +54,7 @@ if [ -x "$XV/Xvfb" ] || command -v Xvfb >/dev/null 2>&1; then
   echo "--- perf (real renderer under Xvfb, gl_compatibility) ---"
   DISPLAY=:98 timeout "${TEST_TIMEOUT:-300}" $GODOT --rendering-method gl_compatibility --display-driver x11 --resolution 720x1280 --path . -s res://tests/perf.gd >"$dir/perfx.log" 2>&1
   rcx=$?
-  grep -E "^PERF" "$dir/perfx.log"
+  grep -E "^PERF|^FAIL" "$dir/perfx.log"
   [ "$rcx" -eq 0 ] || reasons+=("perf (Xvfb) exited $rcx")
   grep -q "^PERF OK" "$dir/perfx.log" || reasons+=("perf (Xvfb) not OK")
   grep -q "RenderingServer counters: max draw calls" "$dir/perfx.log" || reasons+=("perf (Xvfb) printed no renderer counters")

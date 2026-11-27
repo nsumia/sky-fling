@@ -11,6 +11,6 @@
 - [x] 7 Credits screen
 - [x] 8 hangar studio
 - [x] 9 asset + performance tests + 2 negatives (asset missing from ASSETS.md, draw-call budget)
-- [~] 10 effects, screenshots reviewed critically
+- [x] 10 effects (wing-tip trails, speed lines, shake, splash/dust, coin sparkle), screenshots reviewed
 - [ ] 11 one clean tools/run_tests.sh
 - [ ] 12 APK size + sha256

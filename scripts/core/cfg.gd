@@ -1,7 +1,7 @@
 extends RefCounted
 ## Static game data and tuning constants (pure data, no scene access).
 
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 const DT := 1.0 / 60.0
 const MAX_FLIGHT_TIME := 60.0
 const START_H := 3.0

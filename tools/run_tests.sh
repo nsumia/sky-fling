@@ -24,6 +24,7 @@ run() { # name script tail_lines marker
 
 run unit unit 4 "UNIT OK"
 run upgrades upgrades 14 "UPGRADES OK"
+run flight3d flight3d 12 "FLIGHT3D OK"
 
 echo "--- nan_stress (4 shards x 2500 flights = 10,000) ---"
 for s in 0 1 2 3; do

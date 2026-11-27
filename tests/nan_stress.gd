@@ -4,6 +4,7 @@ extends "res://tests/base.gd"
 const Cfg = preload("res://scripts/core/cfg.gd")
 const Stats = preload("res://scripts/core/stats.gd")
 const Flight = preload("res://scripts/core/flight.gd")
+const Terrain = preload("res://scripts/core/terrain.gd")
 
 func bad(v: float) -> bool:
 	return is_nan(v) or is_inf(v)
@@ -23,21 +24,23 @@ func _init() -> void:
 		for c in Cfg.CATS:
 			lv[c] = rng.randi_range(0, Cfg.PART[c]["max"])
 		var perks := {"fuel": rng.randi_range(0, 8)}
-		var f := Flight.new(Stats.compute(lv, perks), rng.randi(), rng.randf(), rng.randf_range(0.0, 1.5))
+		var f := Flight.new(Stats.compute(lv, perks), rng.randi(), rng.randf(), rng.randf_range(0.0, 1.5), rng.randf_range(-0.8, 0.8))
 		var tilt := 0.0
+		var roll := 0.0
 		var boost := false
 		var steps := 0
 		while not f.done and steps < 900:
 			if steps % 17 == 0:
 				tilt = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
+				roll = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
 			if steps % 40 == 0:
 				boost = rng.randf() < 0.5
-			f.step(tilt, boost)
+			f.step(tilt, roll, boost)
 			steps += 1
-			if bad(f.x) or bad(f.y) or bad(f.vx) or bad(f.vy) or bad(f.th) or bad(f.om) or bad(f.fuel):
+			if bad(f.x) or bad(f.y) or bad(f.z) or bad(f.vx) or bad(f.vy) or bad(f.vz) or bad(f.th) or bad(f.om) or bad(f.psi) or bad(f.phi) or bad(f.fuel):
 				bad_count += 1
 				break
-			if f.y < -0.001:
+			if f.y < Terrain.ground(f.x, f.z) - 0.001:
 				below += 1
 				break
 		total_steps += steps
@@ -45,6 +48,6 @@ func _init() -> void:
 		max_v = maxf(max_v, f.max_v)
 	print("shard %d: %d flights, %d steps, max height %.0f m, max speed %.0f m/s" % [shard, n, total_steps, max_h, max_v])
 	check("no NaN/Inf in %d random flights" % n, bad_count == 0, "%d bad" % bad_count)
-	check("plane never goes below ground", below == 0, "%d" % below)
+	check("plane never goes below the terrain", below == 0, "%d" % below)
 	check("speeds stay physical", max_v < 2000.0, str(max_v))
 	finish("NAN STRESS")

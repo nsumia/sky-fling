@@ -119,6 +119,16 @@ func test_save() -> void:
 	check("sanitize(non-dict)", valid_save(Save.sanitize(42)) and valid_save(Save.sanitize(null)) and valid_save(Save.sanitize([1])))
 	check("level clamp", Save.sanitize({"levels": {"wings": 999}})["levels"]["wings"] == Cfg.PART["wings"]["max"])
 	check("save has version", Save.defaults()["v"] == Cfg.SAVE_VERSION)
+	# v3: control settings are saved; a v1/v2 save without them still loads with defaults
+	var old := {"v": 1, "coins": 77, "levels": {"wings": 2}, "settings": {"mute": true, "tutorial": true}}
+	var lo := Save.sanitize(old)
+	check("old (v1) save loads with the new control settings defaulted", lo["coins"] == 77 and lo["settings"]["mute"] == true and lo["settings"]["ctrl"] == 0 and lo["settings"]["invert"] == false and valid_save(lo))
+	var ns := Save.defaults()
+	ns["settings"]["ctrl"] = 1
+	ns["settings"]["invert"] = true
+	ns["settings"]["cal_x"] = -0.35
+	var back := Save.from_json(Save.to_json(ns))
+	check("control settings round-trip (incl. negative calibration)", back["settings"]["ctrl"] == 1 and back["settings"]["invert"] == true and absf(back["settings"]["cal_x"] + 0.35) < 1e-9, str(back["settings"]))
 
 func test_world() -> void:
 	var a := World.chunk(42, 3)
@@ -253,15 +263,15 @@ func test_flight_basics() -> void:
 	var f := Flight.new(Stats.compute(lv), 1, 1.0, 0.7)
 	var g := 0
 	while not f.done and g < 6000:
-		f.step(0.0, false)
+		f.step(0.0, 0.0, false)
 		g += 1
 	check("flight ends", f.done and f.t > 1.0)
-	check("plane lands on the ground", f.y >= 0.0 and f.max_dist > 5.0)
+	check("plane lands on the ground", f.y >= 0.0 and f.max_dist > 5.0 and f.landed)
 	check("same seed is deterministic", Flight.new(Stats.compute(lv), 1, 1.0, 0.7).seed_ == f.seed_)
 	var f2 := Flight.new(Stats.compute(lv), 1, 1.0, 0.7)
 	g = 0
 	while not f2.done and g < 6000:
-		f2.step(0.0, false)
+		f2.step(0.0, 0.0, false)
 		g += 1
 	check("identical replay", f2.x == f.x and f2.t == f.t and f2.max_h == f.max_h)
 	check("gravity weaker in space", Flight.gravity(Cfg.SPACE_ALT) < 4.0 and Flight.gravity(0.0) > 9.7)

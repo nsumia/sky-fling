@@ -34,8 +34,11 @@ func sling_world() -> Vector2:
 	return Vector2(0.0, 3.0)
 
 func pull_world() -> Vector2:
-	var pp := launch_ppm()
-	return Vector2(pull.x / pp.x, -pull.y / pp.y)
+	# unproject the finger onto the z=0 plane (where the plane flies) so the plane sits exactly under the finger
+	if v3 == null:
+		return Vector2(pull.x / 30.0, -pull.y / 30.0)
+	var w: Vector2 = v3.launch_unproject(sling_screen() + pull, size)
+	return w - sling_world()
 
 func to_screen(wx: float, wy: float) -> Vector2:
 	if v3 == null:
@@ -117,7 +120,7 @@ func zone_blend() -> Array:
 		var f := clampf((x - Cfg.ZONE_DIST[z0]) / span * 3.0 - 2.0, 0.0, 1.0)
 		top = top.lerp(V.SKY_TOP[mini(sidx + 1, 4)], f)
 		bot = bot.lerp(V.SKY_BOT[mini(sidx + 1, 4)], f)
-	var a1 := clampf((y - 120.0) / (Cfg.UPPER_ALT - 120.0), 0.0, 1.0)
+	var a1 := pow(clampf((y - 200.0) / (Cfg.UPPER_ALT - 200.0), 0.0, 1.0), 2.0)   # night only creeps in above the clouds
 	top = top.lerp(V.SKY_TOP[6], a1)
 	bot = bot.lerp(V.SKY_BOT[6], a1)
 	var a2 := clampf((y - Cfg.UPPER_ALT) / (Cfg.SPACE_ALT - Cfg.UPPER_ALT), 0.0, 1.0)

@@ -66,6 +66,12 @@ func run() -> void:
 	drag(a + Vector2(-100, 60))
 	await frames(1)
 	check("pull registered + aim arc", m.wv.pull.length() > 50.0 and m.wv.aim_arc.size() > 5)
+	await frames(2)
+	var finger: Vector2 = a + Vector2(-100, 60)
+	var plane_px: Vector2 = m.v3.launch_project(m.v3.plane.global_position, m.size)
+	check("launch drag: the plane is drawn under the finger (within 10 px)", plane_px.distance_to(finger) < 10.0, "plane %s finger %s" % [plane_px, finger])
+	var arc0: Vector2 = m.wv.aim_arc[0]
+	check("aim arc starts at the plane (within 10 px)", arc0.distance_to(finger) < 10.0, "arc0 %s" % arc0)
 	tap(a + Vector2(-100, 60), false)
 	await frames(2)
 	check("flight started after release", m.state == "flight" and m.flight != null)

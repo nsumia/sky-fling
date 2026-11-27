@@ -31,7 +31,7 @@ void fragment() {
 	float h = d.y;
 	vec3 col = h > 0.0 ? mix(hor_c, top_c, pow(clamp(h, 0.0, 1.0), 0.55)) : mix(hor_c, bot_c, pow(clamp(-h, 0.0, 1.0), 0.5));
 	float s = max(dot(d, normalize(sun_dir)), 0.0);
-	col += vec3(1.0, 0.93, 0.75) * (smoothstep(0.9992, 0.9997, s) * 1.4 + pow(s, 40.0) * 0.12) * sun_amt;
+	col += vec3(1.0, 0.82, 0.5) * (smoothstep(0.9960, 0.9998, s) * 0.22 + pow(s, 60.0) * 0.18 + pow(s, 8.0) * 0.06) * sun_amt;
 	if (star_amt > 0.01) {
 		vec3 p = d * 150.0;
 		vec3 id = floor(p);
@@ -54,6 +54,18 @@ void fragment() {
 }
 """
 
+const UPDRAFT_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, blend_mix;
+varying float vh;
+void vertex() { vh = UV.y; }
+void fragment() {
+	float edge = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 2.0);
+	float ends = sin(clamp(vh, 0.0, 1.0) * 3.14159);
+	ALBEDO = vec3(0.85, 1.0, 0.85);
+	ALPHA = 0.07 * edge * ends;
+}
+"""
 const SKY_TOP := [Color("4fb4ff"), Color("3fa0f2"), Color("3a8ee6"), Color("f59d58"), Color("6f8fb5"), Color("86a8d0"), Color("1b2a5c"), Color("05030f")]
 const SKY_BOT := [Color("cdeeff"), Color("c4e8ff"), Color("a8dcff"), Color("ffdca0"), Color("c8d8e8"), Color("e8f0f8"), Color("5b6fb0"), Color("1a1040")]
 
@@ -322,6 +334,18 @@ func project(p: Vector3, vp: Vector2) -> Vector2:
 func launch_project(p: Vector3, vp: Vector2) -> Vector2:
 	return _proj(launch_transform(), FOV, p, vp)
 
+func launch_unproject(s: Vector2, vp: Vector2) -> Vector2:
+	# screen pixel -> point on the z=0 plane (x, height) as seen by the fixed launch camera
+	var t := launch_transform()
+	var th := tan(deg_to_rad(FOV) * 0.5)
+	var dc := Vector3((s.x / vp.x - 0.5) * 2.0 * th, (vp.y * 0.5 - s.y) * 2.0 * th / vp.x, -1.0)
+	var d := t.basis * dc
+	if absf(d.z) < 1e-5:
+		return Vector2(SLING_P.x, SLING_P.y)
+	var k := -t.origin.z / d.z
+	var p := t.origin + d * k
+	return Vector2(p.x, p.y)
+
 func launch_ppm(vp: Vector2) -> Vector2:
 	# screen pixels per metre along world x and y at the slingshot
 	var o := launch_project(SLING_P, vp)
@@ -387,7 +411,7 @@ func sync(wv, dt: float) -> void:
 			var ang := 0.0
 			if wv.pull.length() > 4.0:
 				ang = atan2(-pw.y, -pw.x)
-			_set_plane_pose(pc, ang, 0.0, 1.0, dt)
+			_set_plane_pose(pc, ang, 0.0, 1.0, dt, false)
 			_update_sling(pc, ang)
 			_update_aim(wv)
 			_update_camera_launch(dt, first)
@@ -429,8 +453,8 @@ func sync(wv, dt: float) -> void:
 		cam.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * wv.shake * 0.55
 	dome.global_position = cam.global_position
 
-func _set_plane_pose(pos: Vector3, th: float, bk: float, sc: float, dt := 0.0) -> void:
-	plane.position = pos + Vector3(0, -plane_ground, 0)
+func _set_plane_pose(pos: Vector3, th: float, bk: float, sc: float, dt := 0.0, on_ground := true) -> void:
+	plane.position = pos + Vector3(0, -plane_ground if on_ground else 0.0, 0)
 	plane.basis = Basis(Vector3.BACK, th) * Basis(Vector3.RIGHT, bk)
 	var s := sc * (1.0 + 0.25 * sin(pop_t * PI / 0.5) if pop_t > 0.0 else sc)
 	plane.scale = Vector3.ONE * s
@@ -634,11 +658,10 @@ func _build_updraft() -> Node3D:
 	cm.radial_segments = 14
 	cm.rings = 1
 	col.mesh = cm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.85, 1.0, 0.8, 0.12)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var m := ShaderMaterial.new()
+	var us := Shader.new()
+	us.code = UPDRAFT_SHADER
+	m.shader = us
 	col.material_override = m
 	n.add_child(col)
 	var sb := MB.new()
@@ -708,7 +731,18 @@ func _sync_entities(f) -> void:
 					s.scale = Vector3(1, 1.0 + 0.0 * ph, 1) * (1.0 + h * 0.01)
 			else:
 				n.position = Vector3(ex, ey, 0.0)
+				n.scale = Vector3.ONE
 				Ents3D.animate(n, tp, t, e, 0.0)
+				# shrink / hide pickups that are close to or behind the camera so they never fill the screen
+				var cpos := cam.global_position
+				var dist := cpos.distance_to(n.position)
+				var fwd := -cam.global_transform.basis.z
+				var lo := 8.0 + float(e["r"])
+				var fade := clampf((dist - lo) / 4.0, 0.0, 1.0)
+				if fwd.dot(n.position - cpos) < 0.0:
+					fade = 0.0
+				n.scale = n.scale * fade
+				n.visible = fade > 0.03
 	for id in ents.keys():
 		if not seen.has(id):
 			_release(id)
@@ -796,7 +830,7 @@ func _update_sky(wv, mode: String, py: float) -> void:
 		gcol = zb[2]
 		a1 = zb[3]
 		a2 = zb[4]
-		dome_mat.set_shader_parameter("star_amt", clampf((a1 - 0.35) * 1.5 + a2, 0.0, 1.0))
+		dome_mat.set_shader_parameter("star_amt", clampf((a1 - 0.7) * 3.4 + a2, 0.0, 1.0))
 		dome_mat.set_shader_parameter("sun_amt", 1.0 - clampf(a2 * 1.5, 0.0, 1.0))
 		dome_mat.set_shader_parameter("planet_amt", clampf((a2 - 0.35) * 2.0, 0.0, 1.0))
 		var amb := Color(0.74, 0.8, 0.92).lerp(Color(0.32, 0.34, 0.5), a2)

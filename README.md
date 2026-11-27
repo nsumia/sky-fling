@@ -8,7 +8,7 @@ No ads, no in-app purchases, no third-party assets: all art and sound are genera
 ![mountains](docs/screenshots/flight_mountains.png) ![clouds](docs/screenshots/flight_clouds.png) ![space](docs/screenshots/flight_space.png) ![hangar](docs/screenshots/hangar.png) ![evolved](docs/screenshots/evolved.png)
 
 ## 3D (v2)
-The game is rendered in real 3D (Godot Mobile renderer, 2x MSAA, no shadows, one cheap blob shadow). Every model is built in code from
+The game is rendered in real 3D (Godot Mobile renderer, 2x MSAA (`rendering/anti_aliasing/quality/msaa_3d=1`), no shadows, one cheap blob shadow). Every model is built in code from
 primitive meshes (`scripts/game/mesh_builder.gd`): the plane (7 tier silhouettes, every part level looks different), the slingshot
 (9 levels, stretching bands, 3D aim arc), pickups and hazards, and procedural terrain chunks per zone (pooled and freed as you fly,
 so memory stays flat). Chase camera, landing camera, rotating hangar turntable. Flight physics is still the 2D vertical-plane model,

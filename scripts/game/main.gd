@@ -382,7 +382,6 @@ func to_launch() -> void:
 	wv.pull = Vector2.ZERO
 	wv.aim_arc = PackedVector2Array()
 	wv.aim_world = []
-	wv.aim_world = []
 	wv.particles.clear()
 	wv.pops.clear()
 	wv.cam_x = 0.0

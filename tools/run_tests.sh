@@ -39,6 +39,7 @@ done
 run balance balance 14 "BALANCE OK"
 run plane3d plane3d 4 "PLANE3D OK"
 run chunks chunks 7 "CHUNKS OK"
+run flights flights 6 "FLIGHTS OK"
 run smoke smoke 3 "UI SMOKE OK"
 run layout layout 4 "LAYOUT OK"
 

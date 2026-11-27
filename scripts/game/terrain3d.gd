@@ -5,14 +5,14 @@ const Cfg = preload("res://scripts/core/cfg.gd")
 const MB = preload("res://scripts/game/mesh_builder.gd")
 const TCH := 80.0
 const XS := 8.0
-const ZS := [-130.0, -92.0, -64.0, -44.0, -30.0, -19.0, -10.0, 0.0, 10.0, 19.0, 30.0, 44.0, 64.0, 92.0, 130.0]
+const ZS := [-640.0, -400.0, -250.0, -165.0, -112.0, -78.0, -54.0, -35.0, -22.0, -12.0, 0.0, 12.0, 22.0, 35.0, 54.0, 78.0, 112.0, 165.0, 250.0, 400.0, 640.0]
 const AMP := [3.5, 11.0, 1.5, 7.0, 32.0, 17.0]
 const BASE := [0.0, 0.0, -2.6, 0.0, 0.0, 0.0]
 const CORR := [0.0, 0.0, -0.35, 0.0, 0.0, 0.0]
 const RIDGE := [0.0, 0.1, 0.0, 0.0, 1.0, 0.7]
 const DUNE := [0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
-const COL_A := [Color("7ed957"), Color("5cbf4f"), Color("ecd9a0"), Color("f2c474"), Color("8e939e"), Color("e9f3fb")]
-const COL_B := [Color("a6e86a"), Color("3f9f4d"), Color("3fb0c8"), Color("dba24f"), Color("636b78"), Color("c4d8ea")]
+const COL_A := [Color("62c43c"), Color("3fae48"), Color("f0d890"), Color("f0b45a"), Color("8a8f9c"), Color("e4f0fa")]
+const COL_B := [Color("8fd94a"), Color("2f8f45"), Color("2a9ec0"), Color("d79a42"), Color("5d6573"), Color("b4cbe2")]
 
 static func chain(arr: Array, x: float) -> float:
 	var v: float = arr[0]

@@ -10,8 +10,8 @@ const Terrain3D = preload("res://scripts/game/terrain3d.gd")
 const Ents3D = preload("res://scripts/game/ents3d.gd")
 
 const SLING_P := Vector3(0.0, 3.0, 0.0)           # plane start = pouch rest position
-const LAUNCH_POS := Vector3(-8.0, 6.2, 21.0)
-const LAUNCH_LOOK := Vector3(3.0, 7.2, 0.0)
+const LAUNCH_POS := Vector3(-6.5, 5.0, 16.5)
+const LAUNCH_LOOK := Vector3(2.4, 5.6, 0.0)
 const FOV := 62.0
 const SKY_SHADER := """
 shader_type spatial;
@@ -31,7 +31,7 @@ void fragment() {
 	float h = d.y;
 	vec3 col = h > 0.0 ? mix(hor_c, top_c, pow(clamp(h, 0.0, 1.0), 0.55)) : mix(hor_c, bot_c, pow(clamp(-h, 0.0, 1.0), 0.5));
 	float s = max(dot(d, normalize(sun_dir)), 0.0);
-	col += vec3(1.0, 0.93, 0.75) * (smoothstep(0.9988, 0.9996, s) * 1.6 + pow(s, 24.0) * 0.2) * sun_amt;
+	col += vec3(1.0, 0.93, 0.75) * (smoothstep(0.9992, 0.9997, s) * 1.4 + pow(s, 40.0) * 0.12) * sun_amt;
 	if (star_amt > 0.01) {
 		vec3 p = d * 150.0;
 		vec3 id = floor(p);
@@ -48,7 +48,7 @@ void fragment() {
 		vec3 pc = mix(vec3(0.82, 0.40, 0.18), vec3(0.97, 0.72, 0.42), 0.5 + 0.5 * sin(d.y * 55.0 + d.x * 7.0));
 		float lit = 0.45 + 0.55 * clamp(dot(d - pd, vec3(-0.55, 0.7, 0.3)) * 18.0 + 0.5, 0.0, 1.0);
 		col = mix(col, pc * lit, disc * planet_amt);
-		col += vec3(0.4, 0.6, 1.0) * rim * 0.7 * planet_amt;
+		col += vec3(0.4, 0.6, 1.0) * rim * 0.45 * planet_amt;
 	}
 	ALBEDO = col;
 }
@@ -121,7 +121,7 @@ func _build_scene() -> void:
 	env.background_color = Color("5ec0ff")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.72, 0.78, 0.9)
-	env.ambient_light_energy = 0.75
+	env.ambient_light_energy = 0.55
 	env.fog_enabled = true
 	env.fog_light_color = Color("cdeeff")
 	env.fog_density = 0.004
@@ -130,7 +130,7 @@ func _build_scene() -> void:
 	add_child(we)
 	sun = DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.96, 0.88)
-	sun.light_energy = 1.25
+	sun.light_energy = 1.1
 	sun.shadow_enabled = false
 	add_child(sun)
 	sun.look_at_from_position(Vector3.ZERO, Vector3(-0.55, -0.6, -0.5))
@@ -174,10 +174,10 @@ func _build_scene() -> void:
 	# water
 	water = MeshInstance3D.new()
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(1800.0, 700.0)
+	pm.size = Vector2(1800.0, 1400.0)
 	water.mesh = pm
 	var wm := StandardMaterial3D.new()
-	wm.albedo_color = Color(0.16, 0.62, 0.92, 0.72)
+	wm.albedo_color = Color(0.08, 0.5, 0.92, 0.8)
 	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	wm.roughness = 0.12
 	wm.metallic_specular = 0.9
@@ -449,9 +449,10 @@ func _update_camera_launch(dt: float, first: bool) -> void:
 	_look(cam_pos, cam_look)
 
 func _update_camera_flight(dt: float, f, sp: float, first: bool) -> void:
-	var back := 11.0 + sp * 0.17
-	var side := 11.5 + sp * 0.2
-	var rise := 2.6 + sp * 0.05
+	var spc := minf(sp, 60.0)
+	var back := 8.5 + spc * 0.08
+	var side := 9.5 + spc * 0.1
+	var rise := 2.4 + spc * 0.03
 	var want := Vector3(f.x - back, maxf(2.2, f.y + rise), side)
 	var look := Vector3(f.x + 7.0 + sp * 0.14, f.y + 0.4, 0.0)
 	var k := minf(1.0, dt * (4.5 if not first else 1.5))
@@ -569,7 +570,7 @@ func _sync_world(wv, px: float, py: float, f, mode: String, dt: float) -> void:
 
 func _sync_chunks(px: float, py: float, force_all: bool) -> void:
 	var ci := floori(px / Terrain3D.TCH)
-	var ahead := 5 + clampi(int(py / 150.0), 0, 4)
+	var ahead := 6 + clampi(int(py / 150.0), 0, 4)
 	var lo := ci - 1
 	var hi := ci + ahead
 	for idx in chunks.keys():
@@ -606,7 +607,7 @@ func _sync_chunks(px: float, py: float, force_all: bool) -> void:
 		chunks_built += 1
 	# far fog hides the chunk edge: density follows the visible distance
 	var vis := float(ahead + 1) * Terrain3D.TCH
-	env.fog_density = 2.3 / vis
+	env.fog_density = 1.7 / vis
 
 func _acquire(tp: int, r: float) -> Node3D:
 	var arr: Array = ent_pool.get(tp, [])
@@ -744,7 +745,7 @@ func _update_clouds() -> void:
 					continue
 				var cx := (float(gx) + _hash3(gx, gy, gz + 20)) * 70.0
 				var cz := -28.0 - float(gz) * 45.0 - _hash3(gx, gy, gz + 60) * 30.0
-				var big := 9.0 + _hash3(gx, gy, gz + 80) * 9.0
+				var big := 5.0 + _hash3(gx, gy, gz + 80) * 6.0
 				for k in 4:
 					var ox := (float(k) - 1.5) * big * 0.9 + _hash3(gx, gy + k, gz) * 3.0
 					var oy := (0.4 if k % 2 == 0 else 0.0) * big * 0.5
@@ -800,14 +801,14 @@ func _update_sky(wv, mode: String, py: float) -> void:
 		dome_mat.set_shader_parameter("planet_amt", clampf((a2 - 0.35) * 2.0, 0.0, 1.0))
 		var amb := Color(0.74, 0.8, 0.92).lerp(Color(0.32, 0.34, 0.5), a2)
 		env.ambient_light_color = amb
-		env.ambient_light_energy = 0.78
+		env.ambient_light_energy = 0.55
 		env.fog_density *= (1.0 - a2)
-		sun.light_energy = lerpf(1.25, 1.5, a2)
+		sun.light_energy = lerpf(1.1, 1.5, a2)
 		sun.light_color = Color(1.0, 0.96, 0.88).lerp(Color(0.9, 0.92, 1.0), a2)
 	env.fog_light_color = bot
 	dome_mat.set_shader_parameter("top_c", top)
 	dome_mat.set_shader_parameter("hor_c", bot)
-	dome_mat.set_shader_parameter("bot_c", bot.lerp(gcol, 0.45).darkened(0.1) if mode != "hangar" else Color("0b0c22"))
+	dome_mat.set_shader_parameter("bot_c", bot.lerp(gcol, 0.45 * (1.0 - a1)).darkened(0.1) if mode != "hangar" else Color("0b0c22"))
 
 func stats() -> Dictionary:
 	return {"chunks": chunks.size(), "built": chunks_built, "freed": chunks_freed, "pool": chunk_pool.size(), "ents": ents.size(),

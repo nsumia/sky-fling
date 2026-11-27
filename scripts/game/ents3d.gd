@@ -17,9 +17,10 @@ static func build(tp: int, r: float) -> Node3D:
 	match tp:
 		World.COIN:
 			# coin on edge, axis along z (faces the camera), rim + inner disc
+			b.frustum(Vector3(0, 0, -0.18), Vector3(0, 0, 0.18), r * 0.8, r * 0.8, Color("ff9f1c"), 14)
+			b.glow = true
+			b.frustum(Vector3(0, 0, -0.2), Vector3(0, 0, 0.2), r * 0.6, r * 0.6, Color("ffe066"), 14)
 			b.glow = false
-			b.frustum(Vector3(0, 0, -0.18), Vector3(0, 0, 0.18), r * 0.8, r * 0.8, Color("ffc933"), 14)
-			b.frustum(Vector3(0, 0, -0.2), Vector3(0, 0, 0.2), r * 0.55, r * 0.55, Color("ffe27a"), 14)
 			_mi(n, b)
 		World.FUEL:
 			b.box(Vector3(0, 0, 0), Vector3(r * 1.1, r * 1.4, r * 0.8), Color("e63946"))

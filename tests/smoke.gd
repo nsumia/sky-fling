@@ -1,6 +1,8 @@
 extends "res://tests/base.gd"
 ## Boots the real main scene, drag-launches with input events, flies to the result screen, opens the hangar, buys a part.
 const Cfg = preload("res://scripts/core/cfg.gd")
+const MB = preload("res://scripts/game/mesh_builder.gd")
+const Plane3D = preload("res://scripts/game/plane3d.gd")
 var m
 
 func _initialize() -> void:
@@ -45,6 +47,9 @@ func run() -> void:
 	root.add_child(m)
 	await frames(3)
 	check("boots into launch state", m.state == "launch")
+	check("3D view is live (Camera3D current, plane + slingshot nodes)", m.v3 != null and m.v3.cam.is_current() and m.v3.plane != null and m.v3.sling != null and m.v3 is Node3D)
+	check("terrain chunks built around the slingshot", m.v3.stats()["chunks"] >= 5, str(m.v3.stats()))
+	check("sling screen point is on screen (3D projection)", m.wv.sling_screen().x > 0.0 and m.wv.sling_screen().y > 0.0 and m.wv.sling_screen().x < m.size.x and m.wv.sling_screen().y < m.size.y, str(m.wv.sling_screen()))
 	check("daily gift popup shown on first run", m.modal != null)
 	var ok_btn = m.modal.find_child("ClaimBtn", true, false)
 	check("claim button exists", ok_btn != null)
@@ -83,9 +88,19 @@ func run() -> void:
 	check("resume works", not m.paused)
 	# run the flight to the end deterministically by stepping the frame loop
 	var guard := 0
+	var max_lag := 0.0
+	var max_plane_err := 0.0
+	var seen_ents := 0
 	while m.state == "flight" and guard < 20000:
 		m._process(1.0 / 60.0)
 		guard += 1
+		if m.flight != null and m.flight.t > 1.2:
+			max_lag = maxf(max_lag, absf(m.v3.cam.global_position.x - m.flight.x))
+			max_plane_err = maxf(max_plane_err, absf(m.v3.plane.position.x - m.flight.x))
+			seen_ents = maxi(seen_ents, m.v3.stats()["ents"])
+	check("chase camera follows the plane (max x lag < 35 m)", max_lag < 35.0, "lag %.1f" % max_lag)
+	check("3D plane tracks the flight position", max_plane_err < 0.01, "err %.3f" % max_plane_err)
+	check("pickups/hazards are drawn as 3D nodes", seen_ents > 3, str(seen_ents))
 	check("flight reached the result screen", m.state == "result" and m.last_fs.has("dist"), "state=" + m.state)
 	check("result shows distance > 0", m.last_fs["dist"] > 5.0, str(m.last_fs.get("dist")))
 	check("coins paid", m.d["tot"]["flights"] == 1 and m.d["coins"] >= m.last_result["reward"]["total"])
@@ -100,18 +115,23 @@ func run() -> void:
 	m._refresh_hangar()
 	await frames(2)
 	var before: int = m.d["levels"]["wings"]
+	var wsig0: String = MB.signature(m.v3.plane.get_node("wings"))
 	var coins0: int = m.d["coins"]
 	var buy = m.find_child("Buy_wings", true, false)
 	check("buy button exists and is enabled", buy != null and not buy.disabled)
 	buy.pressed.emit()
 	await frames(2)
 	check("part bought", m.d["levels"]["wings"] == before + 1 and m.d["coins"] < coins0)
+	check("hangar 3D plane is rebuilt: wings node changed after the purchase", MB.signature(m.v3.plane.get_node("wings")) != wsig0)
+	check("hangar shows the 3D stage (world hidden)", m.v3.stage.visible and not m.v3.world.visible)
 	# evolve celebration when the tier rises
 	for c in Cfg.CATS:
 		for k in 2:
 			m._buy_part(c)
 	await frames(2)
 	check("evolved tier + celebration shown", Cfg.tier_of(m.d["levels"]) >= 1 and m.find_child("Celebrate", true, false) != null)
+	check("3D evolved turntable showcase started", m.v3.show_t > 0.0)
+	check("3D plane tier matches the levels", m.v3.plane.get_meta("tier") == Cfg.tier_of(m.d["levels"]))
 	m.find_child("FlyBtn", true, false).pressed.emit()
 	await frames(2)
 	check("back on launch", m.state == "launch")
@@ -151,6 +171,10 @@ func run() -> void:
 	check("perk shop still there after rebirth", perk != null and not perk.disabled)
 	perk.pressed.emit()
 	await frames(2)
+	await frames(2)
+	var ref_plane: Node3D = Plane3D.build(m.d["levels"])
+	check("3D plane rebuilt after rebirth/perk (matches levels)", MB.signature(m.v3.plane.get_node("wings")) == MB.signature(ref_plane.get_node("wings")))
+	ref_plane.free()
 	check("start perk bought, parts start higher", m.d["perks"]["start"] == 1 and m.d["levels"]["wings"] >= 1 and m.d["levels"]["booster"] >= 1)
 	m.go_back()
 	await frames(2)

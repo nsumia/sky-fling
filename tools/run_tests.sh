@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # THE test command. Headless Godot: unit, upgrades-matter, 10k-flight NaN stress (4 parallel shards), balance simulation,
-# UI smoke (real scene + input events), layout (720x1280 and 1080x2400), then the negative tests.
+# 3D plane builder (every part x level), 20 km chunk/node stress, UI + 3D smoke (real scene + input events), layout (720x1280 and 1080x2400), then the negative tests.
 # Non-zero exit on: any godot non-zero exit or timeout, missing summary lines, any SCRIPT ERROR / parse error / ERROR line,
 # or any negative test that is not detected.
 set -uo pipefail
@@ -37,6 +37,8 @@ for s in 0 1 2 3; do
 done
 
 run balance balance 14 "BALANCE OK"
+run plane3d plane3d 4 "PLANE3D OK"
+run chunks chunks 7 "CHUNKS OK"
 run smoke smoke 3 "UI SMOKE OK"
 run layout layout 4 "LAYOUT OK"
 

@@ -30,6 +30,11 @@ static func glow_mat() -> StandardMaterial3D:
 		_glow.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return _glow
 
+## drop the shared materials (tests call this before quitting so the renderer reports no leaked RIDs)
+static func release_statics() -> void:
+	_solid = null
+	_glow = null
+
 func is_empty() -> bool:
 	return vs.is_empty() and gvs.is_empty()
 

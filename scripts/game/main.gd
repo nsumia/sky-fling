@@ -8,7 +8,7 @@ const Save = preload("res://scripts/core/save_store.gd")
 const Missions = preload("res://scripts/core/missions.gd")
 const Ach = preload("res://scripts/core/ach.gd")
 const Sfx = preload("res://scripts/core/sfx.gd")
-const PlaneArt = preload("res://scripts/game/plane_art.gd")
+const View3D = preload("res://scripts/game/view3d.gd")
 const WorldView = preload("res://scripts/game/world_view.gd")
 
 const MAX_PULL := 170.0
@@ -21,6 +21,7 @@ const COL_TXT := Color("ffffff")
 var d: Dictionary
 var save_path := "user://skyfling.json"
 var wv: WorldView
+var v3
 var ui: Control            # everything above the world view
 var hud_launch: Control
 var hud_flight: Control
@@ -55,8 +56,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_compute_safe_area()
+	v3 = View3D.new()
+	v3.name = "View3D"
+	add_child(v3)
 	wv = WorldView.new()
 	add_child(wv)
+	wv.v3 = v3
 	wv.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	wv.levels = d["levels"]
 	ui = Control.new()
@@ -376,6 +381,8 @@ func to_launch() -> void:
 	wv.mode = "launch"
 	wv.pull = Vector2.ZERO
 	wv.aim_arc = PackedVector2Array()
+	wv.aim_world = []
+	wv.aim_world = []
 	wv.particles.clear()
 	wv.pops.clear()
 	wv.cam_x = 0.0
@@ -387,6 +394,8 @@ func to_launch() -> void:
 
 func open_hangar() -> void:
 	state = "hangar"
+	wv.mode = "hangar"
+	wv.pull = Vector2.ZERO
 	_close_modal()
 	hud_launch.visible = false
 	_build_hangar()
@@ -399,9 +408,9 @@ func start_flight(pull_frac: float, angle: float) -> void:
 	wv.mode = "flight"
 	wv.pull = Vector2.ZERO
 	wv.aim_arc = PackedVector2Array()
+	wv.aim_world = []
 	wv.cam_x = 0.0
 	wv.cam_y = 0.0
-	wv.scale_px = 13.0
 	wv.levels = d["levels"]
 	state = "flight"
 	accum = 0.0
@@ -710,10 +719,11 @@ func _build_hangar() -> void:
 	ui.add_child(root)
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.1, 0.19, 0.98)
+	bg.color = Color(0.06, 0.1, 0.19, 0.97)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bg)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.offset_top = size.y * 0.37    # the top part stays transparent: the 3D turntable shows through
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	root.add_child(vb)
@@ -733,11 +743,8 @@ func _build_hangar() -> void:
 	var tier_l := label("", 34, COL_TXT, HORIZONTAL_ALIGNMENT_CENTER)
 	vb.add_child(tier_l)
 	var prev := Control.new()
-	prev.custom_minimum_size = Vector2(0, 190)
+	prev.custom_minimum_size = Vector2(0, 330)
 	prev.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	prev.draw.connect(func():
-		var t := Time.get_ticks_msec() / 1000.0
-		PlaneArt.draw(prev, d["levels"], prev.size * 0.5 + Vector2(0, sin(t * 2.0) * 5.0), 0.1, 34.0, 0.0, 0.0, t))
 	prev.name = "Preview"
 	vb.add_child(prev)
 	var sc := ScrollContainer.new()
@@ -812,14 +819,14 @@ func _buy_part(cat: String) -> void:
 		_refresh_hangar()
 		if after > before:
 			celebrate("Evolved!  %s" % Cfg.TIER_NAMES[after])
-		if modal != null and modal.has_meta("prev"):
-			modal.get_meta("prev").queue_redraw()
 		var an := Ach.check(d)
 		if an.size() > 0:
 			save_now()
 
 func celebrate(text: String) -> void:
 	play("evolve")
+	if state == "hangar":
+		v3.showcase()
 	var l := label(text, 60, COL_ACC, HORIZONTAL_ALIGNMENT_CENTER)
 	l.name = "Celebrate"
 	ui.add_child(l)
@@ -943,17 +950,17 @@ func _launch_params() -> Array:
 
 func _update_aim() -> void:
 	var lp := _launch_params()
-	var pts := PackedVector2Array()
+	var pts: Array = []
 	if lp[0]:
 		var st: Dictionary = Econ.stats_for(d)
 		var v0: float = st["v_max"] * (0.25 + 0.75 * lp[1])
 		var vx := v0 * cos(lp[2])
 		var vy := v0 * sin(lp[2])
-		var o: Vector2 = wv.sling_screen() + wv.pull
+		var o: Vector2 = wv.sling_world() + wv.pull_world()
 		for i in 24:
 			var t := float(i) / 24.0
-			pts.append(o + Vector2(vx * t, -(vy * t - 0.5 * 9.81 * t * t)) * wv.scale_px)
-	wv.aim_arc = pts
+			pts.append(o + Vector2(vx * t, vy * t - 0.5 * 9.81 * t * t))
+	wv.set_aim(pts)
 
 func _release_pull() -> void:
 	var lp := _launch_params()
@@ -962,6 +969,7 @@ func _release_pull() -> void:
 	else:
 		wv.pull = Vector2.ZERO
 		wv.aim_arc = PackedVector2Array()
+		wv.aim_world = []
 
 func go_back() -> void:
 	if dialog != null:
@@ -1015,9 +1023,9 @@ func _process(delta: float) -> void:
 					finish_flight()
 	elif state == "launch":
 		wv.mode = "launch"
+	elif state == "hangar":
+		wv.mode = "hangar"
 	wv.update_cam(delta)
-	if state == "hangar" and modal != null and modal.has_meta("prev"):
-		modal.get_meta("prev").queue_redraw()
 	if pending_celebrate != "":
 		celebrate(pending_celebrate)
 		pending_celebrate = ""

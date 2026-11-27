@@ -11,6 +11,10 @@ func check(name: String, cond: bool, info := "") -> void:
 		print("FAIL: ", name, " ", info)
 
 func finish(tag: String) -> void:
+	# free the scene and shared resources first so the renderer does not report leaked RIDs at exit
+	for c in root.get_children():
+		c.free()
+	load("res://scripts/game/mesh_builder.gd").release_statics()
 	print("== %d passed, %d failed ==" % [passed, failed])
 	if failed == 0:
 		print(tag, " OK")

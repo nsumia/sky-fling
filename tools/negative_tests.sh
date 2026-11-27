@@ -20,6 +20,11 @@ mutations=(
   "boost button pushed off-screen (layout)|scripts/game/main.gd|bb.offset_right = -30|bb.offset_right = 200|layout|SKYFLING_SAVE=user://neg_layout.json"
   "zero mass gives NaN physics|scripts/core/flight.gd|var mass := p_mass|var mass := 0.0|nan_stress|NAN_N=40"
   "result screen never reached (smoke)|scripts/game/main.gd|state = \"result\"|state = \"flying\"|smoke|SKYFLING_SAVE=user://neg_smoke.json"
+  "3D: gear level does not change the mesh|scripts/game/plane3d.gd|var gr: int = P[\"gear\"]|var gr: int = mini(1, P[\"gear\"])|plane3d|"
+  "3D: part levels ignored by the plane builder|scripts/game/plane3d.gd|p[c] = int(lv.get(c, 0))|p[c] = 0|plane3d|"
+  "3D: terrain chunk leak (chunks never freed)|scripts/game/view3d.gd|if idx < lo or idx > hi:|if false:|chunks|"
+  "3D: camera does not follow the plane|scripts/game/view3d.gd|var want := Vector3(f.x - back,|var want := Vector3(0.0 - back,|chunks|"
+  "3D: hangar model not rebuilt after a purchase|scripts/game/view3d.gd|if sig != last_levels_sig:|if false:|smoke|SKYFLING_SAVE=user://neg_smoke3.json"
   "confirm dialog replaces the panel (reintroduced bug)|scripts/game/main.gd|_panel_box(0.85, false)|_panel_box(0.85, true)|smoke|SKYFLING_SAVE=user://neg_smoke2.json"
 )
 

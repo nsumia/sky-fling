@@ -4,7 +4,15 @@ Fling a paper plane from a slingshot, grab coins, bolt on better parts and evolv
 Reach Space, rebirth for Stars, and go even farther. A portrait mobile game made with Godot 4 (GDScript).
 No ads, no in-app purchases, no third-party assets: all art and sound are generated in code.
 
-![launch](docs/screenshots/launch.png) ![evolved](docs/screenshots/evolved.png) ![rebirth](docs/screenshots/rebirth.png) ![flight](docs/screenshots/flight.png) ![hangar](docs/screenshots/hangar.png) ![result](docs/screenshots/result.png)
+![launch](docs/screenshots/launch.png) ![meadow](docs/screenshots/flight_meadow.png) ![sea](docs/screenshots/flight_sea.png) ![desert](docs/screenshots/flight_desert.png)
+![mountains](docs/screenshots/flight_mountains.png) ![clouds](docs/screenshots/flight_clouds.png) ![space](docs/screenshots/flight_space.png) ![hangar](docs/screenshots/hangar.png) ![evolved](docs/screenshots/evolved.png)
+
+## 3D (v2)
+The game is rendered in real 3D (Godot Mobile renderer, 2x MSAA (`rendering/anti_aliasing/quality/msaa_3d=1`), no shadows, one cheap blob shadow). Every model is built in code from
+primitive meshes (`scripts/game/mesh_builder.gd`): the plane (7 tier silhouettes, every part level looks different), the slingshot
+(9 levels, stretching bands, 3D aim arc), pickups and hazards, and procedural terrain chunks per zone (pooled and freed as you fly,
+so memory stays flat). Chase camera, landing camera, rotating hangar turntable. Flight physics is still the 2D vertical-plane model,
+so balance is unchanged. The 2D HUD and menus overlay the 3D view.
 
 ## Controls
 | Action | Touch | Keyboard / mouse |

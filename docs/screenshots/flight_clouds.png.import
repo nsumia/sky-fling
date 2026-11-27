@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bahkjqmmragvg"
-path="res://.godot/imported/rebirth.png-cb306f1f5c98ed8dd38034259c9c1282.ctex"
+uid="uid://peytdg5gl2gy"
+path="res://.godot/imported/flight_clouds.png-988b2dd0501a4a073e1d0794d241a20a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/screenshots/rebirth.png"
-dest_files=["res://.godot/imported/rebirth.png-cb306f1f5c98ed8dd38034259c9c1282.ctex"]
+source_file="res://docs/screenshots/flight_clouds.png"
+dest_files=["res://.godot/imported/flight_clouds.png-988b2dd0501a4a073e1d0794d241a20a.ctex"]
 
 [params]
 

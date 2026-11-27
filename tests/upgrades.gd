@@ -29,13 +29,23 @@ func _init() -> void:
 	var a := avg_best(base)
 	print("baseline (all parts level 1): avg best distance %.0f m" % a)
 	for c in Cfg.CATS:
-		if c == "tail":
+		if c == "tail" or c == "gear":
 			continue
 		var lv := base.duplicate()
 		lv[c] = 4
 		var b := avg_best(lv)
 		print("  %s 1 -> 4: %.0f m (%+.1f%%)" % [c, b, (b / a - 1.0) * 100.0])
 		check("upgrading %s increases average distance" % c, b > a * 1.01, "%.1f vs %.1f" % [b, a])
+	# skids only matter when the plane touches down, so test them on a low-level plane that lands early
+	var gl := {}
+	for c in Cfg.CATS:
+		gl[c] = 0
+	gl["wings"] = 2
+	var g0 := avg_best(gl)
+	gl["gear"] = 4
+	var g1 := avg_best(gl)
+	print("  gear (landing plane) 0 -> 4: %.0f -> %.0f m" % [g0, g1])
+	check("upgrading gear increases average distance", g1 > g0 * 1.01, "%.1f vs %.1f" % [g1, g0])
 	# the tail is about stability: with a sloppy pilot it must help
 	var t0 := avg_sloppy(base)
 	var lv2 := base.duplicate()

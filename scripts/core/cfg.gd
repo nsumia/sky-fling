@@ -14,14 +14,14 @@ const SPACE_ALT := 600.0
 # --- parts: id, display name, max level, base cost, growth ---
 const CATS := ["wings", "tail", "body", "engine", "fuel", "booster", "sling", "gear"]
 const PART := {
-	"wings": {"name": "Wings", "max": 8, "base": 30.0, "growth": 2.02, "desc": "More lift, a little more drag"},
-	"tail": {"name": "Tail", "max": 6, "base": 22.5, "growth": 2.02, "desc": "Steadier flight, fewer stalls"},
-	"body": {"name": "Body", "max": 6, "base": 22.5, "growth": 2.02, "desc": "Slipperier and lighter"},
-	"engine": {"name": "Engine", "max": 8, "base": 112.5, "growth": 1.97, "desc": "Thrust while fuel lasts"},
-	"fuel": {"name": "Fuel Tank", "max": 6, "base": 60.0, "growth": 2.02, "desc": "Engine runs longer"},
-	"booster": {"name": "Booster", "max": 6, "base": 300.0, "growth": 2.02, "desc": "Rocket charges for BOOST"},
-	"sling": {"name": "Slingshot", "max": 8, "base": 30.0, "growth": 2.02, "desc": "Launch power"},
-	"gear": {"name": "Skids", "max": 5, "base": 18.8, "growth": 2.02, "desc": "Bounce and roll further"},
+	"wings": {"name": "Wings", "max": 8, "base": 30.0, "growth": 2.07, "desc": "More lift, a little more drag"},
+	"tail": {"name": "Tail", "max": 6, "base": 22.5, "growth": 2.07, "desc": "Steadier flight, fewer stalls"},
+	"body": {"name": "Body", "max": 6, "base": 22.5, "growth": 2.07, "desc": "Slipperier and lighter"},
+	"engine": {"name": "Engine", "max": 8, "base": 112.5, "growth": 2.02, "desc": "Thrust while fuel lasts"},
+	"fuel": {"name": "Fuel Tank", "max": 6, "base": 60.0, "growth": 2.07, "desc": "Engine runs longer"},
+	"booster": {"name": "Booster", "max": 6, "base": 300.0, "growth": 2.07, "desc": "Rocket charges for BOOST"},
+	"sling": {"name": "Slingshot", "max": 8, "base": 30.0, "growth": 2.07, "desc": "Launch power"},
+	"gear": {"name": "Skids", "max": 5, "base": 18.8, "growth": 2.07, "desc": "Bounce and roll further"},
 }
 const TIER_NAMES := ["Paper Plane", "Balsa Glider", "Biplane", "Prop Plane", "Jet", "Rocket Plane", "Space Plane"]
 const TIER_MIN := [0, 4, 10, 17, 26, 35, 45]

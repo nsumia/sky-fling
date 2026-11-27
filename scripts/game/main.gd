@@ -11,6 +11,7 @@ const Sfx = preload("res://scripts/core/sfx.gd")
 const View3D = preload("res://scripts/game/view3d.gd")
 const WorldView = preload("res://scripts/game/world_view.gd")
 const Controls = preload("res://scripts/core/controls.gd")
+const Credits = preload("res://scripts/core/credits.gd")
 const Joystick = preload("res://scripts/game/joystick.gd")
 
 const MAX_PULL := 170.0
@@ -712,6 +713,9 @@ func _fill_menu(c: VBoxContainer) -> void:
 	var cs := btn("Controls", _show_settings, 84)
 	cs.name = "ControlsBtn"
 	c.add_child(cs)
+	var crb := btn("Credits", _show_credits, 84)
+	crb.name = "CreditsBtn"
+	c.add_child(crb)
 	var tut := btn("Show tutorial", func():
 		close_panel()
 		_show_tutorial(), 84)
@@ -1127,7 +1131,8 @@ func _flight_events() -> void:
 				wv.shake = 0.2
 			"bounce":
 				if e["v"] > 6.0:
-					wv.burst(e["x"], e["y"], 6, Color("d9c7a0"), 5.0, 0.5, 6.0, e["z"])
+					var wet: bool = load("res://scripts/core/terrain.gd").height(e["x"], e["z"]) < 0.1
+					wv.burst(e["x"], e["y"], 14 if wet else 6, Color("e8f6ff") if wet else Color("d9c7a0"), 6.0 if wet else 5.0, 0.7 if wet else 0.5, 6.0, e["z"])
 					play("bounce")
 					wv.shake = minf(0.6, e["v"] * 0.02)
 	f.events.clear()
@@ -1155,6 +1160,17 @@ func _update_flight_hud() -> void:
 		lbl["ctrlhint"].text = "Pull back = climb, left / right = turn"
 
 # ------------------------------------------------------------------ settings (controls), saved with the game
+func _show_credits() -> void:
+	var vb := _panel_box(0.9, false)
+	vb.add_child(label("Credits", 46, COL_ACC, HORIZONTAL_ALIGNMENT_CENTER))
+	var l := label(Credits.text(), 24, Color("cfe8ff"))
+	l.name = "CreditsText"
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(l)
+	var cl := btn("DONE", _close_dialog, 90, true)
+	cl.name = "CreditsDone"
+	vb.add_child(cl)
+
 func _show_settings() -> void:
 	var st: Dictionary = d["settings"]
 	var vb := _panel_box(0.9, false)

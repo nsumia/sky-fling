@@ -96,4 +96,14 @@ func run() -> void:
 	fly_for(1.0)
 	m.open_panel("Trophies", m._fill_trophies)
 	await shot("trophies")
+	m.close_panel()
+	m._show_credits()
+	fly_for(0.5)
+	await shot("credits")
+	m._close_dialog()
+	m.d["levels"] = {"wings": 5, "tail": 4, "body": 3, "engine": 5, "fuel": 3, "booster": 3, "sling": 5, "gear": 3}
+	m.wv.levels = m.d["levels"]
+	m.open_hangar()
+	fly_for(1.2)
+	await shot("hangar_jet")
 	quit()

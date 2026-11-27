@@ -88,6 +88,11 @@ static func build(lv: Dictionary) -> Node3D:
 		if m.mesh != null:
 			lo = minf(lo, m.mesh.get_aabb().position.y)
 	root.set_meta("ground_y", lo)
+	var tip := Vector3(-0.3, 0.0, float(P["s"]))
+	if P["model"]:
+		var inf: Dictionary = P["info"]
+		tip = Vector3((float(inf["tip_x0"]) + float(inf["tip_x1"])) * 0.5 * float(P["sc"]), float(inf["wing_ys"][0]) * float(P["sc"]), float(P["s"]))
+	root.set_meta("tip", tip)
 	return root
 
 static func bounds(root: Node3D) -> AABB:

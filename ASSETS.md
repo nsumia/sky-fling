@@ -24,7 +24,7 @@ Format: the `Files` column holds repo paths (a path ending in `/` covers every f
 | Rock Formation | Kenney | https://poly.pizza/m/pRY9BCFbmQ | CC0 1.0 | `assets/models/nature/rock_formation.glb` | none |
 | Kloofendal 48d Partly Cloudy (Pure Sky) 1k HDRI | Greg Zaal, Jarod Guest | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 1.0 | `assets/hdri/kloofendal_48d_partly_cloudy_puresky_1k.hdr` | none |
 | Rogland Sunset 1k HDRI | Greg Zaal | https://polyhaven.com/a/rogland_sunset | CC0 1.0 | `assets/hdri/rogland_sunset_1k.hdr` | none |
-| Aerial Grass Rock 1k (diff, nor_gl, rough) | Rob Tuytel | https://polyhaven.com/a/aerial_grass_rock | CC0 1.0 | `assets/tex/aerial_grass_rock/` | none |
+| Aerial Grass Rock 1k (diff, nor_gl) | Rob Tuytel | https://polyhaven.com/a/aerial_grass_rock | CC0 1.0 | `assets/tex/aerial_grass_rock/` | none |
 | Aerial Sand 1k | Rob Tuytel | https://polyhaven.com/a/aerial_sand | CC0 1.0 | `assets/tex/aerial_sand/` | none |
 | Snow 02 1k | Rob Tuytel | https://polyhaven.com/a/snow_02 | CC0 1.0 | `assets/tex/snow_02/` | none |
 | Rocky Terrain 02 1k | Amal Kumar | https://polyhaven.com/a/rocky_terrain_02 | CC0 1.0 | `assets/tex/rocky_terrain_02/` | none |
@@ -32,6 +32,6 @@ Format: the `Files` column holds repo paths (a path ending in `/` covers every f
 Poly Haven licence page (https://polyhaven.com/license) states CC0 for HDRIs and textures. Poly Pizza model pages show "CC-BY 3.0" or "CC0 1.0" per model (checked per page).
 Not used: Poly Pizza "Bird"/"Pigeon"/"Birb" (cartoon heads, not flying birds): birds are our own meshes. Water normal, cloud sprites and stars are generated in code (ours).
 
-## Credits text (CC-BY, shown in Menu > Credits and in the README)
+## Credits text (CC-BY, shown in Menu > Credits and in the README; kept in scripts/core/credits.gd)
 "Airplane by Poly by Google, Small Airplane by Vojtech Balak, Jet by jeremy, via Poly Pizza (poly.pizza), licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Modifications: scaled, re-textured, with add-on parts."
 Courtesy (CC0): skies and textures from Poly Haven; models by Quaternius and Kenney.

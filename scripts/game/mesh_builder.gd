@@ -228,8 +228,9 @@ static func signature(n: Node) -> String:
 		for si in n.mesh.get_surface_count():
 			var arr: Array = n.mesh.surface_get_arrays(si)
 			vcount += arr[Mesh.ARRAY_VERTEX].size()
-			for col in arr[Mesh.ARRAY_COLOR]:
-				csum += col.r * 1.3 + col.g * 2.1 + col.b * 3.7
+			if arr[Mesh.ARRAY_COLOR] != null:
+				for col in arr[Mesh.ARRAY_COLOR]:
+					csum += col.r * 1.3 + col.g * 2.1 + col.b * 3.7
 		s += "[%.2f,%.2f,%.2f|%.2f,%.2f,%.2f|%d|%.1f]" % [bb.position.x, bb.position.y, bb.position.z, bb.size.x, bb.size.y, bb.size.z, vcount, csum]
 	for c in n.get_children():
 		s += "{" + signature(c) + "}"

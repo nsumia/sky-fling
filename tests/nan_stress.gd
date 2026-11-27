@@ -4,6 +4,7 @@ extends "res://tests/base.gd"
 const Cfg = preload("res://scripts/core/cfg.gd")
 const Stats = preload("res://scripts/core/stats.gd")
 const Flight = preload("res://scripts/core/flight.gd")
+const Terrain = preload("res://scripts/core/terrain.gd")
 
 func bad(v: float) -> bool:
 	return is_nan(v) or is_inf(v)
@@ -18,33 +19,43 @@ func _init() -> void:
 	var total_steps := 0
 	var max_h := 0.0
 	var max_v := 0.0
+	var unended := 0
+	var longest := 0.0
 	for i in n:
 		var lv := {}
 		for c in Cfg.CATS:
 			lv[c] = rng.randi_range(0, Cfg.PART[c]["max"])
 		var perks := {"fuel": rng.randi_range(0, 8)}
-		var f := Flight.new(Stats.compute(lv, perks), rng.randi(), rng.randf(), rng.randf_range(0.0, 1.5))
+		var f := Flight.new(Stats.compute(lv, perks), rng.randi(), rng.randf(), rng.randf_range(0.0, 1.5), rng.randf_range(-0.8, 0.8))
 		var tilt := 0.0
+		var roll := 0.0
 		var boost := false
 		var steps := 0
-		while not f.done and steps < 900:
+		f.safety_cap = 600.0     # tests only: a broken build must not hang
+		while not f.done and steps < 36100:
 			if steps % 17 == 0:
 				tilt = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
+				roll = rng.randf_range(-1.0, 1.0) if rng.randf() < 0.7 else float(rng.randi_range(-1, 1))
 			if steps % 40 == 0:
 				boost = rng.randf() < 0.5
-			f.step(tilt, boost)
+			f.step(tilt, roll, boost)
 			steps += 1
-			if bad(f.x) or bad(f.y) or bad(f.vx) or bad(f.vy) or bad(f.th) or bad(f.om) or bad(f.fuel):
+			if bad(f.x) or bad(f.y) or bad(f.z) or bad(f.vx) or bad(f.vy) or bad(f.vz) or bad(f.th) or bad(f.om) or bad(f.psi) or bad(f.phi) or bad(f.fuel):
 				bad_count += 1
 				break
-			if f.y < -0.001:
+			if f.y < Terrain.ground(f.x, f.z) - 0.001:
 				below += 1
 				break
 		total_steps += steps
+		if not f.done or f.t >= 599.0:
+			unended += 1
+		longest = maxf(longest, f.t)
 		max_h = maxf(max_h, f.max_h)
 		max_v = maxf(max_v, f.max_v)
 	print("shard %d: %d flights, %d steps, max height %.0f m, max speed %.0f m/s" % [shard, n, total_steps, max_h, max_v])
 	check("no NaN/Inf in %d random flights" % n, bad_count == 0, "%d bad" % bad_count)
-	check("plane never goes below ground", below == 0, "%d" % below)
+	check("plane never goes below the terrain", below == 0, "%d" % below)
+	print("longest flight %.1f s, %d flights did not end by themselves" % [longest, unended])
+	check("every random flight ends by itself (no timer, %d flights)" % n, unended == 0, str(unended))
 	check("speeds stay physical", max_v < 2000.0, str(max_v))
 	finish("NAN STRESS")

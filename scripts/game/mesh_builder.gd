@@ -7,20 +7,85 @@ var cs := PackedColorArray()
 var gvs := PackedVector3Array()
 var gns := PackedVector3Array()
 var gcs := PackedColorArray()
+var mvs := PackedVector3Array()
+var mns := PackedVector3Array()
+var mcs := PackedColorArray()
 var glow := false
+var solid_override: Material = null   # e.g. paper / balsa PBR material for the solid layer
+var metal := false      # third layer: PBR metal (engine nozzles, props, struts ...)
 var xf := Transform3D.IDENTITY
 
 static var _solid: StandardMaterial3D
 static var _glow: StandardMaterial3D
+static var _metal: StandardMaterial3D
+static var _paper: StandardMaterial3D
+static var _wood: StandardMaterial3D
+
+## paper: generated grain (ours), normal map from the same noise, two-sided, matte
+static func paper_mat() -> StandardMaterial3D:
+	if _paper == null:
+		var n := FastNoiseLite.new()
+		n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		n.frequency = 0.09
+		n.fractal_octaves = 3
+		var img := n.get_seamless_image(256, 256)
+		var bump := img.duplicate()
+		bump.bump_map_to_normal_map(3.0)
+		img.adjust_bcs(0.0, 0.0, 1.0)
+		# pale grain between 0.86 and 1.0
+		for y in 256:
+			for x in 256:
+				var v := 0.86 + 0.14 * img.get_pixel(x, y).r
+				img.set_pixel(x, y, Color(v, v, v))
+		img.generate_mipmaps()
+		bump.generate_mipmaps()
+		_paper = StandardMaterial3D.new()
+		_paper.vertex_color_use_as_albedo = true
+		_paper.albedo_texture = ImageTexture.create_from_image(img)
+		_paper.normal_enabled = true
+		_paper.normal_texture = ImageTexture.create_from_image(bump)
+		_paper.normal_scale = 0.6
+		_paper.uv1_triplanar = true
+		_paper.uv1_scale = Vector3(0.9, 0.9, 0.9)
+		_paper.roughness = 0.88
+		_paper.metallic = 0.0
+		_paper.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_paper.backlight_enabled = true
+		_paper.backlight = Color(0.35, 0.33, 0.3)
+	return _paper
+
+## balsa / plywood: Poly Haven plywood (CC0), triplanar so the code-built geometry needs no UVs
+static func wood_mat() -> StandardMaterial3D:
+	if _wood == null:
+		_wood = StandardMaterial3D.new()
+		_wood.vertex_color_use_as_albedo = true
+		_wood.albedo_texture = load("res://assets/tex/plywood/plywood_diff_1k.jpg")
+		_wood.normal_enabled = true
+		_wood.normal_texture = load("res://assets/tex/plywood/plywood_nor_gl_1k.jpg")
+		_wood.uv1_triplanar = true
+		_wood.uv1_scale = Vector3(0.7, 0.7, 0.7)
+		_wood.roughness = 0.6
+		_wood.metallic = 0.0
+	return _wood
 
 static func solid_mat() -> StandardMaterial3D:
 	if _solid == null:
 		_solid = StandardMaterial3D.new()
 		_solid.vertex_color_use_as_albedo = true
-		_solid.roughness = 0.62
-		_solid.metallic_specular = 0.35
+		_solid.roughness = 0.52
+		_solid.metallic = 0.06
+		_solid.metallic_specular = 0.5
 		_solid.cull_mode = BaseMaterial3D.CULL_BACK
 	return _solid
+
+static func metal_mat() -> StandardMaterial3D:
+	if _metal == null:
+		_metal = StandardMaterial3D.new()
+		_metal.vertex_color_use_as_albedo = true
+		_metal.roughness = 0.28
+		_metal.metallic = 0.92
+		_metal.cull_mode = BaseMaterial3D.CULL_BACK
+	return _metal
 
 static func glow_mat() -> StandardMaterial3D:
 	if _glow == null:
@@ -34,9 +99,12 @@ static func glow_mat() -> StandardMaterial3D:
 static func release_statics() -> void:
 	_solid = null
 	_glow = null
+	_metal = null
+	_paper = null
+	_wood = null
 
 func is_empty() -> bool:
-	return vs.is_empty() and gvs.is_empty()
+	return vs.is_empty() and gvs.is_empty() and mvs.is_empty()
 
 func tri(a: Vector3, b: Vector3, c: Vector3, col: Color, center: Vector3) -> void:
 	a = xf * a
@@ -57,6 +125,10 @@ func tri(a: Vector3, b: Vector3, c: Vector3, col: Color, center: Vector3) -> voi
 		gvs.append_array([a, c, b])
 		gns.append_array([n, n, n])
 		gcs.append_array([col, col, col])
+	elif metal:
+		mvs.append_array([a, c, b])
+		mns.append_array([n, n, n])
+		mcs.append_array([col, col, col])
 	else:
 		vs.append_array([a, c, b])
 		ns.append_array([n, n, n])
@@ -177,7 +249,15 @@ func to_mesh() -> ArrayMesh:
 		arr[Mesh.ARRAY_NORMAL] = ns
 		arr[Mesh.ARRAY_COLOR] = cs
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-		m.surface_set_material(m.get_surface_count() - 1, solid_mat())
+		m.surface_set_material(m.get_surface_count() - 1, solid_override if solid_override != null else solid_mat())
+	if not mvs.is_empty():
+		var arr3: Array = []
+		arr3.resize(Mesh.ARRAY_MAX)
+		arr3[Mesh.ARRAY_VERTEX] = mvs
+		arr3[Mesh.ARRAY_NORMAL] = mns
+		arr3[Mesh.ARRAY_COLOR] = mcs
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr3)
+		m.surface_set_material(m.get_surface_count() - 1, metal_mat())
 	if not gvs.is_empty():
 		var arr2: Array = []
 		arr2.resize(Mesh.ARRAY_MAX)
@@ -200,8 +280,9 @@ static func signature(n: Node) -> String:
 		for si in n.mesh.get_surface_count():
 			var arr: Array = n.mesh.surface_get_arrays(si)
 			vcount += arr[Mesh.ARRAY_VERTEX].size()
-			for col in arr[Mesh.ARRAY_COLOR]:
-				csum += col.r * 1.3 + col.g * 2.1 + col.b * 3.7
+			if arr[Mesh.ARRAY_COLOR] != null:
+				for col in arr[Mesh.ARRAY_COLOR]:
+					csum += col.r * 1.3 + col.g * 2.1 + col.b * 3.7
 		s += "[%.2f,%.2f,%.2f|%.2f,%.2f,%.2f|%d|%.1f]" % [bb.position.x, bb.position.y, bb.position.z, bb.size.x, bb.size.y, bb.size.z, vcount, csum]
 	for c in n.get_children():
 		s += "{" + signature(c) + "}"

@@ -18,9 +18,9 @@ static func build(tp: int, r: float) -> Node3D:
 		World.COIN:
 			# coin on edge, axis along z (faces the camera), rim + inner disc
 			b.frustum(Vector3(0, 0, -0.18), Vector3(0, 0, 0.18), r * 0.8, r * 0.8, Color("ff9f1c"), 14)
-			b.glow = true
-			b.frustum(Vector3(0, 0, -0.2), Vector3(0, 0, 0.2), r * 0.6, r * 0.6, Color("ffe066"), 14)
-			b.glow = false
+			b.metal = true       # one PBR metal surface: a shiny gold coin that catches the sky reflection
+			b.frustum(Vector3(0, 0, -0.2), Vector3(0, 0, 0.2), r * 0.62, r * 0.62, Color("ffd34d"), 14)
+			b.metal = false
 			_mi(n, b)
 		World.FUEL:
 			b.box(Vector3(0, 0, 0), Vector3(r * 1.1, r * 1.4, r * 0.8), Color("e63946"))

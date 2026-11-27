@@ -4,11 +4,12 @@ extends RefCounted
 ## changes exactly that node's mesh. Tier decides the silhouette, part levels decide sizes, extras and colour accents.
 const Cfg = preload("res://scripts/core/cfg.gd")
 const MB = preload("res://scripts/game/mesh_builder.gd")
+const Models = preload("res://scripts/game/models.gd")
 
 const PARTS := ["body", "wings", "tail", "engine", "fuel", "booster", "gear"]
 const BODY_COL := [Color("f8f5ec"), Color("e9be7a"), Color("e63946"), Color("2f8fe8"), Color("d4dce6"), Color("ff6a2e"), Color("eef2ff")]
-const WING_COL := [Color("e3dece"), Color("f5dfa3"), Color("ffd23f"), Color("f4f7fb"), Color("8e9bb0"), Color("f6f0dc"), Color("3a3f5c")]
-const ACC_COL := [Color("5aa9e6"), Color("d94f4f"), Color("1d3557"), Color("ff9f1c"), Color("ef233c"), Color("1b1b2f"), Color("39e6ff")]
+const WING_COL := [Color("e3dece"), Color("f5dfa3"), Color("e85d22"), Color("e4e7ec"), Color("62798a"), Color("c9692b"), Color("d9dde3")]
+const ACC_COL := [Color("5aa9e6"), Color("d94f4f"), Color("1d3557"), Color("a8322a"), Color("3a8fa3"), Color("4f8ea8"), Color("6fa3b8")]
 const GLASS := Color("a8e0ff")
 const METAL := Color("aab4c0")
 const DARK := Color("2a2d36")
@@ -25,6 +26,19 @@ static func params(lv: Dictionary) -> Dictionary:
 	p["bc"] = BODY_COL[t]
 	p["wc"] = WING_COL[t]
 	p["ac"] = ACC_COL[t]
+	p["model"] = Models.has_model(t)
+	if p["model"]:
+		# realistic glTF hull: the add-on parts are sized from the measured model, the body level scales the hull a little
+		var md := Models.get_model(t)
+		var info: Dictionary = md["info"]
+		var sc: float = 1.0 + 0.02 * float(p["body"])
+		p["sc"] = sc
+		p["info"] = info
+		p["hl"] = float(info["hl"]) * sc
+		p["L"] = p["hl"] * 2.0
+		p["R"] = float(info["R"]) * sc
+		p["ext"] = 0.016 * float(p["wings"]) * float(info["s0"]) * sc
+		p["s"] = float(info["s0"]) * sc + p["ext"]
 	return p
 
 static func build(lv: Dictionary) -> Node3D:
@@ -34,22 +48,41 @@ static func build(lv: Dictionary) -> Node3D:
 	root.set_meta("tier", P["tier"])
 	for part in PARTS:
 		var b := MB.new()
+		if P["tier"] == 0:
+			b.solid_override = MB.paper_mat()
+		elif P["tier"] == 1:
+			b.solid_override = MB.wood_mat()
+		var base: ArrayMesh = null
+		var model: bool = P["model"]
 		match part:
-			"body": _body(b, P)
-			"wings": _wings(b, P)
-			"tail": _tail(b, P)
+			"body":
+				if model:
+					base = Models.build_mesh(P["tier"], P["sc"])
+					_model_body(b, P)
+				else:
+					_body(b, P)
+			"wings":
+				if model:
+					_model_wings(b, P)
+				else:
+					_wings(b, P)
+			"tail":
+				if model:
+					_model_tail(b, P)
+				else:
+					_tail(b, P)
 			"engine": _engine(b, P)
 			"fuel": _fuel(b, P)
 			"booster": _booster(b, P)
 			"gear": _gear(b, P)
 		var mi := MeshInstance3D.new()
 		mi.name = part
-		mi.mesh = b.to_mesh()
+		mi.mesh = _merge(base, b)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
 	var eng: MeshInstance3D = root.get_node("engine")
 	var hl: float = P["hl"]
-	if P["tier"] <= 3 and P["engine"] > 0:
+	if P["tier"] <= 3 and (P["engine"] > 0 or P["model"]):
 		eng.add_child(_prop(P))
 	root.add_child(_flame(P))
 	# lowest point (landing gear or belly) so physics y=0 sits on the ground
@@ -59,6 +92,11 @@ static func build(lv: Dictionary) -> Node3D:
 		if m.mesh != null:
 			lo = minf(lo, m.mesh.get_aabb().position.y)
 	root.set_meta("ground_y", lo)
+	var tip := Vector3(-0.3, 0.0, float(P["s"]))
+	if P["model"]:
+		var inf: Dictionary = P["info"]
+		tip = Vector3((float(inf["tip_x0"]) + float(inf["tip_x1"])) * 0.5 * float(P["sc"]), float(inf["wing_ys"][0]) * float(P["sc"]), float(P["s"]))
+	root.set_meta("tip", tip)
 	return root
 
 static func bounds(root: Node3D) -> AABB:
@@ -70,6 +108,119 @@ static func bounds(root: Node3D) -> AABB:
 			bb = m.mesh.get_aabb() if first else bb.merge(m.mesh.get_aabb())
 			first = false
 	return bb
+
+## model surfaces first, then the code-built add-on layers (solid / metal / glow) of `b`
+static func _merge(base: ArrayMesh, b: MB) -> ArrayMesh:
+	var add := b.to_mesh()
+	if base == null:
+		return add
+	if add != null:
+		for si in add.get_surface_count():
+			base.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, add.surface_get_arrays(si))
+			base.surface_set_material(base.get_surface_count() - 1, add.surface_get_material(si))
+	return base
+
+# ------------------------------------------------------------------ add-ons for the realistic glTF hulls
+static func _model_body(b: MB, P: Dictionary) -> void:
+	# livery: dorsal stripe following the fuselage's top line, longer and bolder with the body level; side stripes from level 3
+	var bd: int = P["body"]
+	if bd <= 0:
+		return
+	var info: Dictionary = P["info"]
+	var sc: float = P["sc"]
+	var ac: Color = P["ac"]
+	var prof: Array = info["prof"]
+	var n := mini(prof.size(), 3 + bd)
+	var w := 0.05 + 0.012 * bd
+	for i in range(0, n - 1):
+		var a: Vector2 = prof[prof.size() - 1 - i]
+		var c: Vector2 = prof[prof.size() - 2 - i]
+		if a.y < -1e8 or c.y < -1e8:
+			continue
+		var ya := a.y * sc + 0.012
+		var yc := c.y * sc + 0.012
+		b.slab([Vector3(a.x * sc, ya, -w), Vector3(c.x * sc, yc, -w), Vector3(c.x * sc, yc, w), Vector3(a.x * sc, ya, w)], Vector3(0, 0.02, 0), ac if i % 2 == 0 else ac.lightened(0.3))
+
+static func _model_wings(b: MB, P: Dictionary) -> void:
+	var info: Dictionary = P["info"]
+	var sc: float = P["sc"]
+	var w: int = P["wings"]
+	var ac: Color = P["ac"]
+	var wc: Color = P["wc"]
+	var s0: float = float(info["s0"]) * sc
+	var ext: float = P["ext"]
+	var x0: float = float(info["tip_x0"]) * sc
+	var x1: float = float(info["tip_x1"]) * sc
+	var chord := maxf(0.25, x1 - x0)
+	var cx := (x0 + x1) * 0.5
+	var th := 0.045 + 0.004 * w
+	for yw in info["wing_ys"]:
+		var y: float = float(yw) * sc
+		for sg in [-1.0, 1.0]:
+			# navigation light at every wing tip
+			b.glow = true
+			b.sphere(Vector3(cx, y + 0.03, sg * (s0 + ext + 0.02)), 0.045, Color("ff3b3b") if sg < 0.0 else Color("38ff7a"), 2, 5)
+			b.glow = false
+			if w <= 0:
+				continue
+			var A := Vector3(x1 - 0.02, y, sg * (s0 - 0.04))
+			var B := Vector3(x1 - 0.02 - 0.22 * ext, y, sg * (s0 + ext))
+			var C := Vector3(B.x - chord * 0.8, y, sg * (s0 + ext))
+			var D := Vector3(x0 + 0.02, y, sg * (s0 - 0.04))
+			b.slab([A, B, C, D], Vector3(0, th, 0), wc.darkened(0.03), wc.lightened(0.05))
+			if w >= 2:   # thin tip trim
+				b.slab([A.lerp(B, 0.93), B, C, D.lerp(C, 0.93)], Vector3(0, th * 1.15, 0), ac)
+			if w >= 4:   # thin stripe
+				b.slab([A.lerp(B, 0.55), A.lerp(B, 0.6), D.lerp(C, 0.6), D.lerp(C, 0.55)], Vector3(0, th * 1.15, 0), ac)
+			if w >= 5:   # winglet
+				var h := 0.10 + 0.02 * w
+				b.slab([B, C, C + Vector3(-0.12, h, 0), B + Vector3(-0.04, h, 0)], Vector3(0, 0, 0.04), wc)
+				b.slab([B + Vector3(-0.02, h * 0.55, 0), B + Vector3(-0.04, h, 0), C + Vector3(-0.12, h, 0), C + Vector3(-0.08, h * 0.55, 0)], Vector3(0, 0, 0.05), ac)
+			if w >= 8:   # glowing leading edge
+				b.glow = true
+				b.slab([A.lerp(B, 0.3), A.lerp(B, 0.8), A.lerp(B, 0.8) + Vector3(-0.07, 0, 0), A.lerp(B, 0.3) + Vector3(-0.07, 0, 0)], Vector3(0, th * 1.5, 0), Color("39e6ff"))
+				b.glow = false
+
+static func _model_tail(b: MB, P: Dictionary) -> void:
+	var info: Dictionary = P["info"]
+	var sc: float = P["sc"]
+	var tl: int = P["tail"]
+	var ac: Color = P["ac"]
+	var wc: Color = P["wc"]
+	var xt: float = float(info["xmin"]) * sc + 0.1
+	var fin_top: float = float(info["fin_top"]) * sc
+	var tail_y: float = float(info["tail_y"]) * sc
+	var sz: float = maxf(0.3, float(info["stab_z"]) * sc)
+	# beacon on the fin tip (always there)
+	b.glow = true
+	b.sphere(Vector3(xt + 0.08, fin_top + 0.03, 0), 0.04, Color("ffffff"), 2, 5)
+	b.glow = false
+	if tl <= 0:
+		return
+	var th := 0.035 + 0.004 * tl
+	var ex := 0.045 * float(tl)
+	# horizontal stabiliser extensions (outboard of the existing tip), growing with the level
+	for sg in [-1.0, 1.0]:
+		var ch := 0.4 + 0.02 * tl
+		var A := Vector3(xt + ch * 0.7, tail_y, sg * (sz - 0.03))
+		var B := Vector3(xt + ch * 0.45, tail_y, sg * (sz + ex))
+		var C := Vector3(xt - 0.1, tail_y, sg * (sz + ex))
+		var D := Vector3(xt - 0.1, tail_y, sg * (sz - 0.03))
+		b.slab([A, B, C, D], Vector3(0, th, 0), wc.darkened(0.05), wc.lightened(0.05))
+		if tl >= 2:
+			b.slab([A.lerp(B, 0.7), B, C, D.lerp(C, 0.7)], Vector3(0, th * 1.4, 0), ac)
+		if tl >= 4:   # end plates
+			var zf: float = sg * (sz + ex)
+			b.slab([Vector3(xt + ch * 0.45, tail_y, zf), Vector3(xt + 0.1, tail_y + 0.34, zf), Vector3(xt - 0.1, tail_y + 0.34, zf), Vector3(xt - 0.1, tail_y, zf)], Vector3(0, 0, th), wc)
+	# taller fin cap, then a ventral fin
+	var fh := 0.04 + 0.025 * tl
+	b.slab([Vector3(xt + 0.35, fin_top - 0.08, 0), Vector3(xt + 0.1, fin_top + fh, 0), Vector3(xt - 0.08, fin_top + fh, 0), Vector3(xt - 0.08, fin_top - 0.08, 0)], Vector3(0, 0, th * 1.2), ac.darkened(0.15))
+	if tl >= 3:
+		b.slab([Vector3(xt + 0.5, tail_y - 0.05, 0), Vector3(xt + 0.1, tail_y - 0.3 - 0.04 * tl, 0), Vector3(xt - 0.1, tail_y - 0.3 - 0.04 * tl, 0), Vector3(xt - 0.1, tail_y - 0.05, 0)], Vector3(0, 0, th), wc)
+	if tl >= 6:
+		b.glow = true
+		b.box(Vector3(xt - 0.05, fin_top + fh, 0), Vector3(0.3, 0.03, 0.08), Color("39e6ff"))
+		b.glow = false
 
 # ------------------------------------------------------------------ body
 static func _tube(b: MB, st: Array, col: Color, ys := 1.0, zs := 1.0, y0 := 0.0, seg := 10) -> void:
@@ -281,6 +432,20 @@ static func _engine(b: MB, P: Dictionary) -> void:
 	var hl: float = P["hl"]
 	var ac: Color = P["ac"]
 	var R: float = P["R"]
+	if t <= 3 and P["model"]:
+		# nose engine on a model hull: cowl ring, exhaust stacks, intake scoop (the hull already has the nose)
+		var xn: float = float(P["info"]["xmax"]) * float(P["sc"])
+		var cr2 := maxf(0.2, R * 1.0)
+		b.metal = true
+		b.torus(Vector3(xn - 0.18 - 0.02 * en, 0, 0), Vector3.RIGHT, cr2, 0.02 + 0.006 * en, METAL, 16, 4)
+		var stacks2 := 0 if en < 2 else (1 if en < 5 else 2)
+		for k in stacks2:
+			for sg in [-1.0, 1.0]:
+				b.frustum(Vector3(xn - 0.5 - 0.22 * k, 0.0, sg * (cr2 + 0.03)), Vector3(xn - 0.5 - 0.22 * k - 0.35, -0.05, sg * (cr2 + 0.1)), 0.045, 0.06, DARK, 6)
+		if en >= 7:
+			b.box(Vector3(xn - 0.7, cr2 + 0.06, 0), Vector3(0.5, 0.12, 0.25), METAL)
+		b.metal = false
+		return
 	if t <= 3:
 		var cr := maxf(0.13, R * 0.9) + 0.012 * en
 		var x0 := hl - 0.2
@@ -307,7 +472,9 @@ static func _engine(b: MB, P: Dictionary) -> void:
 			b.frustum(Vector3(-hl - 0.5, 0, z), Vector3(-hl - 0.52, 0, z), rn * 1.15, rn * 1.15, Color("ffb347"), 10)
 			b.glow = false
 
-static func _prop(P: Dictionary) -> MeshInstance3D:
+static func _prop(P: Dictionary) -> Node3D:
+	if P["model"]:
+		return _model_prop(P)
 	var en: int = P["engine"]
 	var hl: float = P["hl"]
 	var ac: Color = P["ac"]
@@ -327,6 +494,35 @@ static func _prop(P: Dictionary) -> MeshInstance3D:
 	mi.mesh = b.to_mesh()
 	mi.position = Vector3(hl + 0.12 + 0.025 * en, 0, 0)
 	return mi
+
+static func _model_prop(P: Dictionary) -> Node3D:
+	var t: int = P["tier"]
+	var sc: float = P["sc"]
+	var pivot := Node3D.new()
+	pivot.name = "Prop"
+	var pm: ArrayMesh = Models.build_mesh(t, sc, true)
+	if pm != null and pm.get_surface_count() > 0:
+		var bb := pm.get_aabb()
+		var c := bb.get_center()
+		pivot.position = Vector3(0, c.y, c.z)
+		var mi := MeshInstance3D.new()
+		mi.mesh = pm
+		mi.position = Vector3(0, -c.y, -c.z)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pivot.add_child(mi)
+		return pivot
+	# hull with a fixed propeller: a translucent spinning blur disc in front of it, shown while the engine runs
+	var info: Dictionary = P["info"]
+	var b := MB.new()
+	b.glow = true
+	var r: float = float(info.get("prop_r", 0.62)) * sc
+	b.frustum(Vector3(0, 0, 0), Vector3(0.01, 0, 0), r, r, Color(0.9, 0.92, 0.95, 0.35), 20, true, true)
+	var mi2 := MeshInstance3D.new()
+	mi2.mesh = b.to_mesh()
+	pivot.add_child(mi2)
+	pivot.position = Vector3(float(info["xmax"]) * sc + 0.02, float(info.get("prop_y", 0.0)) * sc, 0)
+	pivot.set_meta("blur_only", true)
+	return pivot
 
 static func _flame(P: Dictionary) -> Node3D:
 	var t: int = P["tier"]
@@ -374,7 +570,7 @@ static func _fuel(b: MB, P: Dictionary) -> void:
 	var R: float = maxf(P["R"], 0.18)
 	var r := 0.09 + 0.022 * fu
 	var ln := 0.45 + 0.12 * fu
-	var col := Color("ffb703")
+	var col := Color("ffb703") if not P["model"] else Color("aeb8c2")
 	var ac: Color = P["ac"]
 	var zs := [0.0] if fu < 3 else [-r * 1.15 - 0.08, r * 1.15 + 0.08]
 	for z in zs:
@@ -474,6 +670,8 @@ static func animate(plane: Node3D, t: float, thrust: float, boost: float, spin_m
 	var pr: Node = plane.find_child("Prop", true, false)
 	if pr != null:
 		pr.rotation.x = fposmod(t * (14.0 + 30.0 * thrust) * spin_mul, TAU)
+		if pr.has_meta("blur_only"):
+			(pr as Node3D).visible = thrust > 0.0
 	var fl: Node3D = plane.get_node_or_null("Flame")
 	if fl != null:
 		var on := (thrust > 0.0 or boost > 0.0) and int(plane.get_meta("tier", 0)) >= 0

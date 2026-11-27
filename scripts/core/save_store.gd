@@ -19,7 +19,7 @@ static func defaults() -> Dictionary:
 		"ach": {},
 		"daily": {"last": -1, "streak": 0},
 		"best": [],
-		"settings": {"mute": false, "tutorial": false},
+		"settings": {"mute": false, "tutorial": false, "ctrl": 0, "invert": false, "cal_x": 0.0, "cal_y": 0.0},
 	}
 
 static func _num(v, dflt: float, lo: float, hi: float) -> float:
@@ -65,7 +65,7 @@ static func sanitize(raw) -> Dictionary:
 	_merge_nums(d["rec"], raw.get("rec"))
 	_merge_nums(d["tot"], raw.get("tot"))
 	_merge_nums(d["daily"], raw.get("daily"), -1.0, 1e9)
-	_merge_nums(d["settings"], raw.get("settings"))
+	_merge_nums(d["settings"], raw.get("settings"), -10.0, 1e9)
 	if typeof(raw.get("ach")) == TYPE_DICTIONARY:
 		for k in raw["ach"].keys():
 			if typeof(k) == TYPE_STRING and raw["ach"][k] == true:

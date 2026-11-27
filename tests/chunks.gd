@@ -27,6 +27,8 @@ func run() -> void:
 	var max_ents := 0
 	var max_ent_pool := 0
 	var max_lag := 0.0
+	var min_lag := 1e9
+	var not_behind := 0
 	var off_screen := 0
 	var checks := 0
 	var step := 1.6
@@ -34,9 +36,13 @@ func run() -> void:
 	var t0 := Time.get_ticks_msec()
 	for i in n:
 		f.x = float(i) * step
+		f.z = 60.0 * sin(f.x * 0.004)                 # weave sideways: the world is 3D
+		var dzdx := 0.24 * cos(f.x * 0.004)
 		f.y = minf(3400.0, 3.0 + f.x * 0.17 + 25.0 * sin(f.x * 0.01))
 		f.vx = step * 60.0
+		f.vz = dzdx * f.vx
 		f.vy = 0.0
+		f.psi = atan2(-dzdx, 1.0)
 		f.th = 0.05
 		f.t += 1.0 / 60.0
 		f.on_ground = false
@@ -55,23 +61,30 @@ func run() -> void:
 			max_nodes = maxi(max_nodes, nc)
 		if i > 100 and i % 20 == 0:
 			checks += 1
-			max_lag = maxf(max_lag, absf(v3.cam.global_position.x - f.x))
-			var sp: Vector2 = v3.project(Vector3(f.x, f.y, 0.0), v3.view_size)
+			var cdist: float = v3.cam.global_position.distance_to(f.position3())
+			max_lag = maxf(max_lag, cdist)
+			min_lag = minf(min_lag, cdist)
+			var rel: Vector3 = f.position3() - v3.cam.global_position
+			rel.y = 0.0
+			if rel.length() > 0.5 and rel.normalized().dot(f.heading_dir()) < 0.3:
+				not_behind += 1
+			var sp: Vector2 = v3.project(f.position3(), v3.view_size)
 			if sp.x < 0.0 or sp.y < 0.0 or sp.x > v3.view_size.x or sp.y > v3.view_size.y:
 				off_screen += 1
 	var ms := Time.get_ticks_msec() - t0
 	var st2: Dictionary = v3.stats()
 	var objs1 := int(Performance.get_monitor(Performance.OBJECT_COUNT))
 	print("20 km flown in %d simulated steps (%d ms real). chunks built=%d freed=%d live=%d (max %d) pooled=%d" % [n, ms, st2["built"], st2["freed"], st2["chunks"], max_chunks, st2["pool"]])
-	print("nodes: at step 200 = %d, midpoint = %d, max after = %d, final = %d. objects: %d -> %d. pickups live max %d, pooled max %d. cam x-lag max %.1f m, off-screen checks %d/%d" % [nodes0, nodes_mid, max_nodes, get_node_count(), objs0, objs1, max_ents, max_ent_pool, max_lag, off_screen, checks])
+	print("nodes: at step 200 = %d, midpoint = %d, max after = %d, final = %d. objects: %d -> %d. pickups live max %d, pooled max %d. cam distance max %.1f m, off-screen checks %d/%d" % [nodes0, nodes_mid, max_nodes, get_node_count(), objs0, objs1, max_ents, max_ent_pool, max_lag, off_screen, checks])
 	check("20 km worth of chunks were built (>= 250)", st2["built"] >= 250, str(st2["built"]))
 	check("chunks are freed again (built - live == freed)", st2["built"] - st2["chunks"] == st2["freed"], str(st2))
-	check("live chunks stay bounded (<= 12)", max_chunks <= 12, str(max_chunks))
-	check("chunk pool stays small (<= 6)", st2["pool"] <= 6, str(st2["pool"]))
+	check("live terrain tiles stay bounded (<= 27 + slack)", max_chunks <= 30, str(max_chunks))
+	check("tile pool stays small (<= 30)", st2["pool"] <= 30, str(st2["pool"]))
 	check("node count bounded (max <= start + 260, pools included)", max_nodes <= nodes0 + 260, "%d vs %d" % [max_nodes, nodes0])
 	check("no growth in the second half (final <= midpoint + 30): pools are saturated, nothing leaks", get_node_count() <= nodes_mid + 30, "mid %d final %d" % [nodes_mid, get_node_count()])
 	check("object count bounded (<= 1.5x)", objs1 <= int(objs0 * 1.5) + 200, "%d vs %d" % [objs1, objs0])
 	check("pickup nodes bounded (<= 140 live, <= 200 pooled)", max_ents <= 140 and max_ent_pool <= 200, "%d %d" % [max_ents, max_ent_pool])
-	check("chase camera follows the plane for 20 km (x lag < 40 m)", max_lag < 40.0, "%.1f" % max_lag)
+	check("chase camera follows the plane for 20 km (distance %.1f..%.1f m, 3..45 m)" % [min_lag, max_lag], max_lag < 45.0 and min_lag > 3.0)
+	check("chase camera stays behind the plane along the weaving path", not_behind == 0, "%d of %d" % [not_behind, checks])
 	check("plane stays on screen (all checks)", off_screen == 0, "%d of %d off screen" % [off_screen, checks])
 	finish("CHUNKS")

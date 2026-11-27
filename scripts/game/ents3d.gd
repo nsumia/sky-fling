@@ -58,12 +58,12 @@ static func build(tp: int, r: float) -> Node3D:
 				w.slab([Vector3(r * 0.1, 0, 0), Vector3(-r * 0.3, 0, sg * r * 1.4), Vector3(-r * 0.75, 0, sg * r * 1.3), Vector3(-r * 0.3, 0, 0)], Vector3(0, 0.07, 0), Color("4a4a73"))
 				var wi := _mi(n, w, "wing_l" if sg < 0 else "wing_r")
 		World.STORM:
-			var cols := [Color("4a4e63"), Color("575c75"), Color("3e4256"), Color("636883")]
+			var cols := [Color("5a5f7a"), Color("6a7092"), Color("4c516b"), Color("7a80a3")]
 			var pos := [Vector3(0, 0, 0), Vector3(r * 0.7, -r * 0.1, r * 0.3), Vector3(-r * 0.7, -r * 0.15, -r * 0.2), Vector3(r * 0.1, r * 0.35, -r * 0.25), Vector3(-r * 0.2, -r * 0.3, r * 0.5)]
 			var rr := [0.62, 0.48, 0.5, 0.42, 0.38]
 			for i in 5:
 				b.xf = Transform3D(Basis.from_scale(Vector3(1.0, 0.75, 1.0)), pos[i])
-				b.sphere(Vector3.ZERO, r * rr[i], cols[i % 4], 3, 8)
+				b.sphere(Vector3.ZERO, r * rr[i], cols[i % 4], 4, 10)
 			b.xf = Transform3D.IDENTITY
 			_mi(n, b, "cloud")
 			var l := MB.new()

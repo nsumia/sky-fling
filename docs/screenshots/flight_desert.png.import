@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0w81jhdyr3vo"
-path="res://.godot/imported/flight.png-2605d8125a48ef6ae343ed9e99a63dad.ctex"
+uid="uid://b0cma8bh0ehnr"
+path="res://.godot/imported/flight_desert.png-c97d044f4cebcbb763ad696083530f26.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://docs/screenshots/flight.png"
-dest_files=["res://.godot/imported/flight.png-2605d8125a48ef6ae343ed9e99a63dad.ctex"]
+source_file="res://docs/screenshots/flight_desert.png"
+dest_files=["res://.godot/imported/flight_desert.png-c97d044f4cebcbb763ad696083530f26.ctex"]
 
 [params]
 

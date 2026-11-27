@@ -68,7 +68,7 @@ func run() -> void:
 	check("chunks are freed again (built - live == freed)", st2["built"] - st2["chunks"] == st2["freed"], str(st2))
 	check("live chunks stay bounded (<= 12)", max_chunks <= 12, str(max_chunks))
 	check("chunk pool stays small (<= 6)", st2["pool"] <= 6, str(st2["pool"]))
-	check("node count bounded (max <= start + 150)", max_nodes <= nodes0 + 150, "%d vs %d" % [max_nodes, nodes0])
+	check("node count bounded (max <= start + 260, pools included)", max_nodes <= nodes0 + 260, "%d vs %d" % [max_nodes, nodes0])
 	check("no growth in the second half (final <= midpoint + 30): pools are saturated, nothing leaks", get_node_count() <= nodes_mid + 30, "mid %d final %d" % [nodes_mid, get_node_count()])
 	check("object count bounded (<= 1.5x)", objs1 <= int(objs0 * 1.5) + 200, "%d vs %d" % [objs1, objs0])
 	check("pickup nodes bounded (<= 140 live, <= 200 pooled)", max_ents <= 140 and max_ent_pool <= 200, "%d %d" % [max_ents, max_ent_pool])

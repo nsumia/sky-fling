@@ -475,7 +475,7 @@ func _update_hangar(dt: float, wv) -> void:
 	var spin := 0.55 + stage_spin
 	stage_spin = maxf(0.0, stage_spin - dt * 2.2)
 	var b := plane_bounds
-	var d := maxf(9.5, b.size.x * 1.55)
+	var d := maxf(9.5, maxf(b.size.x, b.size.z) * 1.7)
 	var base := Vector3(0, 0.2 + sin(time * 1.6) * 0.12, 0)
 	plane.position = base
 	plane.basis = Basis(Vector3.UP, hang_yaw(dt, spin)) * Basis(Vector3.BACK, 0.07)

@@ -78,11 +78,10 @@ func run() -> void:
 	fly_for(1.0)
 	await shot("hangar")
 	m.d["coins"] = 900000
-	for i in 6:
-		m._buy_part("wings")
-	m.celebrate("Evolved!  Jet")
-	m.v3.showcase()
-	fly_for(0.9)
+	m.d["levels"] = {"wings": 3, "tail": 2, "body": 2, "engine": 2, "fuel": 2, "booster": 1, "sling": 3, "gear": 1}
+	m.wv.levels = m.d["levels"]
+	m._buy_part("wings")   # 16 -> 17 levels: tier-up to Prop Plane triggers the Evolved! celebration + 3D showcase
+	fly_for(0.7)
 	await shot("evolved")
 	m.to_launch()
 	fly_for(1.0)
